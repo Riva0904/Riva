@@ -1,0 +1,73 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options
+.vs/
+.vscode/
+
+# Visual Studio Code
+*.code-workspace
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+
+# NuGet v3's project.json files makes it even more unmanageable
+project.json
+project.lock.json
+
+# Visual Studio misc files
+*.sln.docstates
+
+# Mac crap
+.DS_Store
+
+# Local user-specific files
+local.settings.json
+
+# Azure Functions local development
+bin/
+obj/
+.csproj.user
+
+# Environment variables
+.env
+.env.local
+
+# IDE specific files
+.vscode/settings.json
+.vscode/extensions.json
+
+# OS files
+Thumbs.db
+.DS_Store
