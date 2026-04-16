@@ -1,13 +1,27 @@
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Riva.Api;
 using Riva.Service.Interfaces;
 using Riva.Api.Util;
+using Riva.Api.Data;
+using Riva.Api.Middleware;
+using Riva.Service.Behaviors;
+using Serilog;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 
@@ -16,12 +30,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add DbContext
-builder.Services.AddDbContext<RivaDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Add ADO.NET Database Connection
+builder.Services.AddScoped<DatabaseConnection>();
+
+// Register ConnectionStringProvider
+builder.Services.AddScoped<Riva.Service.Data.ConnectionStringProvider>(s =>
+    new Riva.Service.Data.ConnectionStringProvider(s.GetRequiredService<DatabaseConnection>().ConnectionString));
 
 // Add MediatR
 builder.Services.AddMediatR(typeof(Program).Assembly, typeof(Riva.Service.CommandHandler.Auth.RegisterCommandHandler).Assembly);
+
+// Add FluentValidation
+builder.Services.AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Riva.Service.CommandHandler.Auth.RegisterCommandHandler>());
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -59,6 +79,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Add error handling middleware
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
