@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Riva.Dto.Admin;
+using Riva.Dto.User;
 using Riva.Service.Command.User;
 using Riva.Service.Query.Admin;
 using Riva.Service.Query.User;
@@ -20,7 +21,7 @@ public class UsersController : ControllerBase
         _mediator = mediator;
     }
 
-    [HttpGet("me")]
+    [HttpPost("me")]
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()
     {
@@ -30,24 +31,24 @@ public class UsersController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("{id}")]
+    [HttpPost("getbyid")]
     [Authorize]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById([FromBody] GetUserByIdRequest request)
     {
         var currentUserId = GetCurrentUserId();
         var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
 
-        if (currentUserRole != "Admin" && currentUserId != id)
+        if (currentUserRole != "Admin" && currentUserId != request.Id)
         {
             return Forbid();
         }
 
-        var query = new GetUserByIdQuery { UserId = id };
+        var query = new GetUserByIdQuery { UserId = request.Id };
         var response = await _mediator.Send(query);
         return Ok(response);
     }
 
-    [HttpGet]
+    [HttpPost("getall")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllUsers()
     {
@@ -56,56 +57,56 @@ public class UsersController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("search")]
+    [HttpPost("search")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SearchUsers([FromQuery] string? searchTerm, [FromQuery] string? role, [FromQuery] bool? isActive, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> SearchUsers([FromBody] SearchUsersRequest request)
     {
         var query = new SearchUsersQuery
         {
-            SearchTerm = searchTerm,
-            Role = role,
-            IsActive = isActive,
-            PageNumber = pageNumber,
-            PageSize = pageSize
+            SearchTerm = request.SearchTerm,
+            Role = request.Role,
+            IsActive = request.IsActive,
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize
         };
 
         var response = await _mediator.Send(query);
         return Ok(response);
     }
 
-    [HttpPut("{id}/status")]
+    [HttpPost("updatestatus")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] bool isActive)
+    public async Task<IActionResult> UpdateStatus([FromBody] UpdateUserStatusRequest request)
     {
         var command = new UpdateUserStatusCommand
         {
-            UserId = id,
-            IsActive = isActive
+            UserId = request.Id,
+            IsActive = request.IsActive
         };
 
         await _mediator.Send(command);
         return NoContent();
     }
 
-    [HttpPut("{id}/role")]
+    [HttpPost("updaterole")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateRole(int id, [FromBody] string newRole)
+    public async Task<IActionResult> UpdateRole([FromBody] UpdateUserRoleRequest request)
     {
         var command = new UpdateUserRoleCommand
         {
-            UserId = id,
-            NewRole = newRole
+            UserId = request.Id,
+            NewRole = request.NewRole
         };
 
         await _mediator.Send(command);
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    [HttpPost("delete")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteUser(int id)
+    public async Task<IActionResult> DeleteUser([FromBody] DeleteUserRequest request)
     {
-        var command = new DeleteUserCommand { UserId = id };
+        var command = new DeleteUserCommand { UserId = request.Id };
         await _mediator.Send(command);
         return NoContent();
     }

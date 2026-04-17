@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Riva.Dto.Admin;
 using Riva.Service.Command.Admin;
 
 namespace Riva.Api.Controllers;
@@ -21,60 +22,49 @@ public class AdminActionsController : ControllerBase
     /// <summary>
     /// Bulk activate or deactivate multiple users
     /// </summary>
-    /// <param name="userIds">Comma-separated list of user IDs (e.g., "1,2,3,4")</param>
-    /// <param name="isActive">True to activate, False to deactivate</param>
     [HttpPost("users/activate")]
-    public async Task<IActionResult> BulkSetActivateUsers(
-        [FromQuery] string userIds,
-        [FromQuery] bool isActive)
+    public async Task<IActionResult> BulkSetActivateUsers([FromBody] BulkActivateUsersRequest request)
     {
-        if (string.IsNullOrWhiteSpace(userIds))
+        if (string.IsNullOrWhiteSpace(request.UserIds))
             return BadRequest(new { message = "userIds parameter is required (comma-separated values)" });
 
-        var command = new BulkSetActivateUsersCommand(userIds, isActive);
+        var command = new BulkSetActivateUsersCommand(request.UserIds, request.IsActive);
         var result = await _mediator.Send(command);
 
         if (result.ReturnValue != 0)
             return BadRequest(new { message = result.Message ?? "Failed to update user status" });
 
-        return Ok(new { message = $"Successfully updated {userIds.Split(',').Length} users", returnValue = result.ReturnValue });
+        return Ok(new { message = $"Successfully updated {request.UserIds.Split(',').Length} users", returnValue = result.ReturnValue });
     }
 
     /// <summary>
     /// Bulk assign a role to multiple users
     /// </summary>
-    /// <param name="userIds">Comma-separated list of user IDs</param>
-    /// <param name="roleName">Role name to assign (e.g., "Admin", "User", "Moderator")</param>
     [HttpPost("users/assign-role")]
-    public async Task<IActionResult> BulkAssignRole(
-        [FromQuery] string userIds,
-        [FromQuery] string roleName)
+    public async Task<IActionResult> BulkAssignRole([FromBody] BulkAssignRoleRequest request)
     {
-        if (string.IsNullOrWhiteSpace(userIds))
+        if (string.IsNullOrWhiteSpace(request.UserIds))
             return BadRequest(new { message = "userIds parameter is required" });
 
-        if (string.IsNullOrWhiteSpace(roleName))
+        if (string.IsNullOrWhiteSpace(request.RoleName))
             return BadRequest(new { message = "roleName parameter is required" });
 
-        var command = new BulkAssignRoleCommand(userIds, roleName);
+        var command = new BulkAssignRoleCommand(request.UserIds, request.RoleName);
         var result = await _mediator.Send(command);
 
         if (result.ReturnValue != 0)
             return BadRequest(new { message = result.Message ?? "Failed to assign roles" });
 
-        return Ok(new { message = $"Successfully assigned '{roleName}' role to {result.AffectedRows} users", affectedRows = result.AffectedRows });
+        return Ok(new { message = $"Successfully assigned '{request.RoleName}' role to {result.AffectedRows} users", affectedRows = result.AffectedRows });
     }
 
     /// <summary>
     /// Log an administrative action for audit trail
     /// </summary>
     [HttpPost("log-action")]
-    public async Task<IActionResult> LogAdminAction(
-        [FromQuery] string action,
-        [FromQuery] int? targetUserId = null,
-        [FromQuery] string? details = null)
+    public async Task<IActionResult> LogAdminAction([FromBody] LogAdminActionRequest request)
     {
-        if (string.IsNullOrWhiteSpace(action))
+        if (string.IsNullOrWhiteSpace(request.Action))
             return BadRequest(new { message = "action parameter is required" });
 
         var adminUserId = GetCurrentUserId();
@@ -83,7 +73,7 @@ public class AdminActionsController : ControllerBase
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
 
-        var command = new LogAdminActionCommand(adminUserId, action, targetUserId, details, ipAddress);
+        var command = new LogAdminActionCommand(adminUserId, request.Action, request.TargetUserId, request.Details, ipAddress);
         var result = await _mediator.Send(command);
 
         if (result.ReturnValue != 0)
