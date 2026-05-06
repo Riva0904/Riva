@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Riva.Domain.Entity;
 using Riva.Dto.Auth;
 using Riva.Service.Command.Auth;

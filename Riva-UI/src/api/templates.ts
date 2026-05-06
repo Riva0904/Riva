@@ -115,11 +115,3 @@ export async function deleteTemplate(templateId: number): Promise<{ message: str
     method: 'DELETE',
   })
 }
-
-}
-
-export async function shareTemplate(templateId: number): Promise<ShareTemplateResponse> {
-  return apiFetch<ShareTemplateResponse>(`templates/${templateId}/share`, {
-    method: 'POST',
-  })
-}

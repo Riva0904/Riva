@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Riva.Service.Command.Payment;
 using Riva.Dto.Payment;
 using Riva.Service.Repository;
-using Razorpay.Api;
+// using Razorpay.Api;
 
 namespace Riva.Service.CommandHandler.Payment;
 

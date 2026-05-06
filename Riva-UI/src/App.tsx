@@ -4,6 +4,7 @@ import AppLayout from './AppLayout'
 import HomePage from './pages/Home-page/HomePage'
 import AdminPage from './pages/Admin/AdminPage'
 import { useAuth } from './hooks/useAuth'
+import { AuthProvider } from './store/AuthContext'
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -21,28 +22,30 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <AppLayout>
-              <HomePage />
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route
+            path="/"
+            element={
               <AppLayout>
-                <AdminPage />
+                <HomePage />
               </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </Router>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AdminPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
   )
 }
 

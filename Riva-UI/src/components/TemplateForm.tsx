@@ -249,7 +249,7 @@ export const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSubmit, 
         </fieldset>
 
         {/* Form Actions */}
-        <div className={styles.actions}>
+        <div className={styles.formActions}>
           <button
             type="button"
             onClick={onCancel}
