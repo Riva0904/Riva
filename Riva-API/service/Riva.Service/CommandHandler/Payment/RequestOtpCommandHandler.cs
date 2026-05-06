@@ -1,7 +1,6 @@
 using MediatR;
 using Riva.Service.Command.Payment;
 using Riva.Service.Repository;
-using Riva.Domain.Entity;
 
 namespace Riva.Service.CommandHandler.Payment;
 
@@ -16,20 +15,17 @@ public class RequestOtpCommandHandler : IRequestHandler<RequestOtpCommand, bool>
 
     public async Task<bool> Handle(RequestOtpCommand request, CancellationToken cancellationToken)
     {
-        // Generate 6-digit OTP
-        var otpCode = new Random().Next(100000, 999999).ToString();
-
-        var otp = new PaymentOtp
+        var otpCode = Random.Shared.Next(100000, 999999).ToString();
+        var otp = new Riva.Domain.Entity.PaymentOtp
         {
-            PaymentId = request.PaymentId,
-            Code = otpCode,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(5) // 5 minutes expiry
+            UserId = request.UserId,
+            Email = string.Empty,
+            OtpCode = otpCode,
+            ExpiryTime = DateTime.UtcNow.AddMinutes(5),
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow
         };
-
         await _paymentRepository.CreatePaymentOtpAsync(otp);
-
-        // In real app, send OTP via SMS/Email
-        // For demo, just return true
         return true;
     }
 }

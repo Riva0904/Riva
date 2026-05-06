@@ -42,7 +42,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, defaultMode, onClose, onL
     setStatus('Logging in...')
 
     try {
-      await login({ username, password })
+      await login({ emailOrUsername: username, password })
       const user = await getCurrentUser()
       onLoginSuccess(user)
       setStatus(`Logged in as ${user.username}`)

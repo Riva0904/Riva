@@ -1,8 +1,7 @@
 using MediatR;
-using Riva.Service.Command.Payment;
 using Riva.Dto.Payment;
+using Riva.Service.Command.Payment;
 using Riva.Service.Repository;
-using Riva.Domain.Entity;
 
 namespace Riva.Service.CommandHandler.Payment;
 
@@ -21,8 +20,9 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         {
             UserId = request.UserId,
             Amount = request.Request.Amount,
-            Currency = request.Request.Currency,
-            Notes = request.Request.Notes
+            Currency = request.Request.Currency ?? "INR",
+            Status = "Pending",
+            TransactionDate = DateTime.UtcNow
         };
 
         var id = await _paymentRepository.CreatePaymentAsync(payment);
@@ -34,8 +34,8 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
             Amount = payment.Amount,
             Currency = payment.Currency,
             Status = payment.Status,
-            CreatedAt = DateTime.UtcNow,
-            Notes = payment.Notes
+            Notes = request.Request.Notes,
+            CreatedAt = payment.TransactionDate
         };
     }
 }

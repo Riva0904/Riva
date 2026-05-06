@@ -1,14 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { getCurrentUser, setAuthToken, getStoredAuthToken } from '../api/auth'
+import { getCurrentUser, logout as _logout } from '../api/auth'
+import { getStoredAuthToken, setAuthToken } from '../api/client'
 
 export interface User {
   id?: number
   username: string
   email: string
   role: string
-  isVerified?: boolean
-  subscriptionTier?: string
-  subscriptionExpiryDate?: string | null
+  isActive?: boolean
 }
 
 interface AuthContextType {
@@ -27,56 +26,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is already logged in
     const checkAuth = async () => {
       const token = getStoredAuthToken()
       if (token) {
         try {
           const currentUser = await getCurrentUser()
-          setUser({
-            username: currentUser.username,
-            email: currentUser.email,
-            role: currentUser.role,
-            isVerified: currentUser.isVerified,
-          })
-        } catch (err) {
-          // Token might be invalid or expired
+          setUser({ username: currentUser.username, email: currentUser.email, role: currentUser.role, isActive: currentUser.isActive })
+        } catch {
           setAuthToken(null)
           setUser(null)
         }
       }
       setLoading(false)
     }
-
     checkAuth()
   }, [])
 
-  const logout = () => {
-    setAuthToken(null)
-    setUser(null)
-  }
+  const logout = () => { _logout(); setUser(null) }
+  const loginSuccess = (token: string, userData: User) => { setAuthToken(token); setUser(userData) }
 
-  const loginSuccess = (token: string, userData: User) => {
-    setAuthToken(token)
-    setUser(userData)
-  }
-
-  const value: AuthContextType = {
-    user,
-    loading,
-    isAuthenticated: !!user,
-    setUser,
-    logout,
-    loginSuccess,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, setUser, logout, loginSuccess }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuthContext = () => {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuthContext must be used within AuthProvider')
-  }
+  if (!context) throw new Error('useAuthContext must be used within AuthProvider')
   return context
 }

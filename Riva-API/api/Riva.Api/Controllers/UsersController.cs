@@ -31,6 +31,16 @@ public class UsersController : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("session")]
+    [Authorize]
+    public async Task<IActionResult> GetSession()
+    {
+        var userId = GetCurrentUserId();
+        var query = new GetUserSessionQuery { UserId = userId };
+        var response = await _mediator.Send(query);
+        return Ok(response);
+    }
+
     [HttpPost("getbyid")]
     [Authorize]
     public async Task<IActionResult> GetById([FromBody] GetUserByIdRequest request)

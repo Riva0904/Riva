@@ -1,5 +1,4 @@
 using MediatR;
-using Riva.Domain.Entity;
 using Riva.Dto.Template;
 using Riva.Service.Command.Template;
 using Riva.Service.Repository;
@@ -25,7 +24,7 @@ public class AddTemplateCommandHandler : IRequestHandler<AddTemplateCommand, Add
         if (request.IsPaid && (request.Price == null || request.Price <= 0))
             throw new InvalidOperationException("A paid template must have a price greater than zero.");
 
-        var template = new Template
+        var template = new Riva.Domain.Entity.Template
         {
             Name = request.Name,
             CategoryId = request.CategoryId,

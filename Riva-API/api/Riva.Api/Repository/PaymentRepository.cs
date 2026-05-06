@@ -1,168 +1,125 @@
-using Riva.Service.Repository;
-using Riva.Domain.Entity;
-using Riva.Api.Data;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.SqlClient;
+using Riva.Api.Data;
+using Riva.Domain.Entity;
+using Riva.Service.Repository;
 
 namespace Riva.Api.Repository;
 
 public class PaymentRepository : IPaymentRepository
 {
-    private readonly DatabaseConnection _dbConnection;
+    private readonly DatabaseConnection _db;
 
-    public PaymentRepository(DatabaseConnection dbConnection)
+    public PaymentRepository(DatabaseConnection db)
     {
-        _dbConnection = dbConnection;
+        _db = db;
     }
 
     public async Task<int> CreatePaymentAsync(Payment payment)
     {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("sp_CreatePayment", connection);
-        command.CommandType = CommandType.StoredProcedure;
+        const string sql = @"
+            INSERT INTO Payments (UserId, Amount, Currency, Status, TransactionDate)
+            OUTPUT INSERTED.Id
+            VALUES (@UserId, @Amount, @Currency, @Status, @TransactionDate)";
 
-        command.Parameters.AddWithValue("@UserId", payment.UserId);
-        command.Parameters.AddWithValue("@Amount", payment.Amount);
-        command.Parameters.AddWithValue("@Currency", payment.Currency);
-        command.Parameters.AddWithValue("@Notes", (object?)payment.Notes ?? DBNull.Value);
-
-        var idParam = new SqlParameter("@Id", SqlDbType.Int) { Direction = ParameterDirection.Output };
-        command.Parameters.Add(idParam);
-
-        await command.ExecuteNonQueryAsync();
-
-        return (int)idParam.Value;
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", payment.UserId);
+        cmd.Parameters.AddWithValue("@Amount", payment.Amount);
+        cmd.Parameters.AddWithValue("@Currency", payment.Currency);
+        cmd.Parameters.AddWithValue("@Status", payment.Status);
+        cmd.Parameters.AddWithValue("@TransactionDate", payment.TransactionDate);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
     public async Task<Payment?> GetPaymentByIdAsync(int id)
     {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Payments WHERE Id = @Id", connection);
-        command.Parameters.AddWithValue("@Id", id);
-
-        using var reader = await command.ExecuteReaderAsync();
-
-        if (await reader.ReadAsync())
-        {
-            return new Payment
-            {
-                Id = reader.GetInt32(0),
-                UserId = reader.GetInt32(1),
-                Amount = reader.GetDecimal(2),
-                Currency = reader.GetString(3),
-                Status = reader.GetString(4),
-                RazorpayOrderId = reader.IsDBNull(5) ? null : reader.GetString(5),
-                RazorpayPaymentId = reader.IsDBNull(6) ? null : reader.GetString(6),
-                RazorpaySignature = reader.IsDBNull(7) ? null : reader.GetString(7),
-                CreatedAt = reader.GetDateTime(8),
-                UpdatedAt = reader.IsDBNull(9) ? null : (DateTime?)reader.GetDateTime(9),
-                Notes = reader.IsDBNull(10) ? null : reader.GetString(10)
-            };
-        }
-
-        return null;
-    }
-
-    public async Task UpdatePaymentAsync(Payment payment)
-    {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("sp_UpdatePaymentStatus", connection);
-        command.CommandType = CommandType.StoredProcedure;
-
-        command.Parameters.AddWithValue("@Id", payment.Id);
-        command.Parameters.AddWithValue("@Status", payment.Status);
-        command.Parameters.AddWithValue("@RazorpayOrderId", (object?)payment.RazorpayOrderId ?? DBNull.Value);
-        command.Parameters.AddWithValue("@RazorpayPaymentId", (object?)payment.RazorpayPaymentId ?? DBNull.Value);
-        command.Parameters.AddWithValue("@RazorpaySignature", (object?)payment.RazorpaySignature ?? DBNull.Value);
-
-        await command.ExecuteNonQueryAsync();
-    }
-
-    public async Task<int> CreatePaymentOtpAsync(PaymentOtp otp)
-    {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("sp_CreatePaymentOtp", connection);
-        command.CommandType = CommandType.StoredProcedure;
-
-        command.Parameters.AddWithValue("@PaymentId", otp.PaymentId);
-        command.Parameters.AddWithValue("@Code", otp.Code);
-        command.Parameters.AddWithValue("@ExpiresAt", otp.ExpiresAt);
-
-        var idParam = new SqlParameter("@Id", SqlDbType.Int) { Direction = ParameterDirection.Output };
-        command.Parameters.Add(idParam);
-
-        await command.ExecuteNonQueryAsync();
-
-        return (int)idParam.Value;
-    }
-
-    public async Task<bool> VerifyPaymentOtpAsync(int paymentId, string code)
-    {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("sp_VerifyPaymentOtp", connection);
-        command.CommandType = CommandType.StoredProcedure;
-
-        command.Parameters.AddWithValue("@PaymentId", paymentId);
-        command.Parameters.AddWithValue("@Code", code);
-
-        var result = (int)await command.ExecuteScalarAsync();
-        return result > 0;
+        const string sql = "SELECT * FROM Payments WHERE Id = @Id";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", id);
+        using var r = await cmd.ExecuteReaderAsync();
+        return await r.ReadAsync() ? MapPayment(r) : null;
     }
 
     public async Task<Payment?> GetPaymentByOrderIdAsync(string razorpayOrderId)
     {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Payments WHERE RazorpayOrderId = @RazorpayOrderId", connection);
-        command.Parameters.AddWithValue("@RazorpayOrderId", razorpayOrderId);
+        const string sql = "SELECT * FROM Payments WHERE RazorpayOrderId = @OrderId";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@OrderId", razorpayOrderId);
+        using var r = await cmd.ExecuteReaderAsync();
+        return await r.ReadAsync() ? MapPayment(r) : null;
+    }
 
-        using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
-        {
-            return new Payment
-            {
-                Id = reader.GetInt32(0),
-                UserId = reader.GetInt32(1),
-                Amount = reader.GetDecimal(2),
-                Currency = reader.GetString(3),
-                Status = reader.GetString(4),
-                RazorpayOrderId = reader.IsDBNull(5) ? null : reader.GetString(5),
-                RazorpayPaymentId = reader.IsDBNull(6) ? null : reader.GetString(6),
-                RazorpaySignature = reader.IsDBNull(7) ? null : reader.GetString(7),
-                CreatedAt = reader.GetDateTime(8),
-                UpdatedAt = reader.IsDBNull(9) ? null : (DateTime?)reader.GetDateTime(9),
-                Notes = reader.IsDBNull(10) ? null : reader.GetString(10)
-            };
-        }
+    public async Task UpdatePaymentAsync(Payment payment)
+    {
+        const string sql = @"
+            UPDATE Payments SET
+                Status = @Status,
+                RazorpayOrderId = @RazorpayOrderId,
+                RazorpayPaymentId = @RazorpayPaymentId,
+                RazorpaySignature = @RazorpaySignature,
+                CompletionDate = @CompletionDate
+            WHERE Id = @Id";
 
-        return null;
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", payment.Id);
+        cmd.Parameters.AddWithValue("@Status", payment.Status);
+        cmd.Parameters.AddWithValue("@RazorpayOrderId", (object?)payment.RazorpayOrderId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@RazorpayPaymentId", (object?)payment.RazorpayPaymentId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@RazorpaySignature", (object?)payment.RazorpaySignature ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@CompletionDate", (object?)payment.CompletionDate ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<int> CreatePaymentOtpAsync(PaymentOtp otp)
+    {
+        const string sql = @"
+            INSERT INTO PaymentOtps (UserId, Email, OtpCode, ExpiryTime, Status, CreatedAt)
+            OUTPUT INSERTED.Id
+            VALUES (@UserId, @Email, @OtpCode, @ExpiryTime, @Status, @CreatedAt)";
+
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", otp.UserId);
+        cmd.Parameters.AddWithValue("@Email", otp.Email);
+        cmd.Parameters.AddWithValue("@OtpCode", otp.OtpCode);
+        cmd.Parameters.AddWithValue("@ExpiryTime", otp.ExpiryTime);
+        cmd.Parameters.AddWithValue("@Status", otp.Status);
+        cmd.Parameters.AddWithValue("@CreatedAt", otp.CreatedAt);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+    }
+
+    public async Task<bool> VerifyPaymentOtpAsync(int paymentId, string code)
+    {
+        // Stub – full Razorpay OTP flow implemented in next phase
+        return await Task.FromResult(false);
     }
 
     public async Task<IEnumerable<Payment>> GetAllPaymentsAsync()
     {
-        var payments = new List<Payment>();
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Payments", connection);
-
-        using var reader = await command.ExecuteReaderAsync();
-
-        while (await reader.ReadAsync())
-        {
-            payments.Add(new Payment
-            {
-                Id = reader.GetInt32(0),
-                UserId = reader.GetInt32(1),
-                Amount = reader.GetDecimal(2),
-                Currency = reader.GetString(3),
-                Status = reader.GetString(4),
-                RazorpayOrderId = reader.IsDBNull(5) ? null : reader.GetString(5),
-                RazorpayPaymentId = reader.IsDBNull(6) ? null : reader.GetString(6),
-                RazorpaySignature = reader.IsDBNull(7) ? null : reader.GetString(7),
-                CreatedAt = reader.GetDateTime(8),
-                UpdatedAt = reader.IsDBNull(9) ? null : (DateTime?)reader.GetDateTime(9),
-                Notes = reader.IsDBNull(10) ? null : reader.GetString(10)
-            });
-        }
-
-        return payments;
+        const string sql = "SELECT * FROM Payments ORDER BY TransactionDate DESC";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        using var r = await cmd.ExecuteReaderAsync();
+        var list = new List<Payment>();
+        while (await r.ReadAsync()) list.Add(MapPayment(r));
+        return list;
     }
+
+    private static Payment MapPayment(SqlDataReader r) => new()
+    {
+        Id = r.GetInt32(r.GetOrdinal("Id")),
+        UserId = r.GetInt32(r.GetOrdinal("UserId")),
+        Amount = r.GetDecimal(r.GetOrdinal("Amount")),
+        Currency = r.GetString(r.GetOrdinal("Currency")),
+        Status = r.GetString(r.GetOrdinal("Status")),
+        RazorpayOrderId = r.IsDBNull(r.GetOrdinal("RazorpayOrderId")) ? null : r.GetString(r.GetOrdinal("RazorpayOrderId")),
+        RazorpayPaymentId = r.IsDBNull(r.GetOrdinal("RazorpayPaymentId")) ? null : r.GetString(r.GetOrdinal("RazorpayPaymentId")),
+        RazorpaySignature = r.IsDBNull(r.GetOrdinal("RazorpaySignature")) ? null : r.GetString(r.GetOrdinal("RazorpaySignature")),
+        TransactionDate = r.GetDateTime(r.GetOrdinal("TransactionDate")),
+        CompletionDate = r.IsDBNull(r.GetOrdinal("CompletionDate")) ? null : r.GetDateTime(r.GetOrdinal("CompletionDate"))
+    };
 }

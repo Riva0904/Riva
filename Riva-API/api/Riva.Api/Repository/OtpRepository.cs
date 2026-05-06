@@ -19,7 +19,6 @@ public class OtpRepository : IOtpRepository
         const string sql = @"
             INSERT INTO UserEmailOtpGenerate (Email, OtpCode, ExpiryTime, Status, CreatedAt)
             VALUES (@Email, @OtpCode, @ExpiryTime, @Status, @CreatedAt)";
-
         using var conn = await _db.GetOpenConnectionAsync();
         using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Email", otp.Email);
@@ -37,26 +36,20 @@ public class OtpRepository : IOtpRepository
             FROM UserEmailOtpGenerate
             WHERE Email = @Email AND Status = 'Pending'
             ORDER BY CreatedAt DESC";
-
         using var conn = await _db.GetOpenConnectionAsync();
         using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Email", email);
-        using var reader = await cmd.ExecuteReaderAsync();
-
-        if (await reader.ReadAsync())
+        using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) return null;
+        return new EmailOtp
         {
-            return new EmailOtp
-            {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                Email = reader.GetString(reader.GetOrdinal("Email")),
-                OtpCode = reader.GetString(reader.GetOrdinal("OtpCode")),
-                ExpiryTime = reader.GetDateTime(reader.GetOrdinal("ExpiryTime")),
-                Status = reader.GetString(reader.GetOrdinal("Status")),
-                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"))
-            };
-        }
-
-        return null;
+            Id         = r.GetInt32(r.GetOrdinal("Id")),
+            Email      = r.GetString(r.GetOrdinal("Email")),
+            OtpCode    = r.GetString(r.GetOrdinal("OtpCode")),
+            ExpiryTime = r.GetDateTime(r.GetOrdinal("ExpiryTime")),
+            Status     = r.GetString(r.GetOrdinal("Status")),
+            CreatedAt  = r.GetDateTime(r.GetOrdinal("CreatedAt"))
+        };
     }
 
     public async Task MarkOtpUsedAsync(int otpId)
@@ -75,5 +68,15 @@ public class OtpRepository : IOtpRepository
         using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Email", email);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<bool> HasVerifiedOtpAsync(string email)
+    {
+        const string sql = "SELECT COUNT(1) FROM UserEmailOtpGenerate WHERE Email = @Email AND Status = 'Used'";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Email", email);
+        var count = (int)await cmd.ExecuteScalarAsync();
+        return count > 0;
     }
 }

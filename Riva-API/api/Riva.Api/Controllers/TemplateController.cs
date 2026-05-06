@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Riva.Dto.Template;
 using Riva.Service.Command.Template;
 using Riva.Service.Query.Template;
@@ -9,8 +9,7 @@ using System.Security.Claims;
 namespace Riva.Api.Controllers;
 
 [ApiController]
-[Route("postapi/[controller]")]
-[AllowAnonymous]
+[Route("api/template")]
 public class TemplateController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -20,73 +19,55 @@ public class TemplateController : ControllerBase
         _mediator = mediator;
     }
 
+    // GET /api/template?categoryId=1&isPaid=false
     [HttpGet]
-    [Authorize]
-    public async Task<IActionResult> GetTemplates()
-    {
-        var userTier = GetCurrentUserTier();
-        var query = new GetTemplatesByTierQuery { UserTier = userTier };
-        var response = await _mediator.Send(query);
-        return Ok(response);
-    }
-
-    [HttpGet("categories")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetTemplateCategories()
+    public async Task<IActionResult> GetAll([FromQuery] int? categoryId, [FromQuery] bool? isPaid)
     {
-        var query = new GetTemplateCategoriesQuery();
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        var result = await _mediator.Send(new GetTemplatesQuery
+        {
+            CategoryId = categoryId,
+            IsPaid = isPaid
+        });
+        return Ok(result);
     }
 
-    [HttpGet("shared/{shareToken}")]
+    // GET /api/template/{id}
+    [HttpGet("{id:int}")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetSharedTemplate(string shareToken)
+    public async Task<IActionResult> GetById(int id)
     {
-        var query = new GetSharedTemplateQuery { ShareToken = shareToken };
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        var result = await _mediator.Send(new GetTemplateByIdQuery { TemplateId = id });
+        return Ok(result);
     }
 
-    [HttpPost("submit")]
-    [Authorize]
-    public async Task<IActionResult> SubmitTemplate([FromBody] TemplateRequestDto request)
+    // POST /api/template  [Admin only]
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AddTemplate([FromBody] AddTemplateRequest request)
     {
-        var userId = GetCurrentUserId();
-        var command = new SubmitTemplateCommand
+        var adminId = GetCurrentUserId();
+        if (adminId == null) return Unauthorized();
+
+        var result = await _mediator.Send(new AddTemplateCommand
         {
-            Request = request,
-            UserId = userId
-        };
-
-        var response = await _mediator.Send(command);
-        return Ok(response);
-    }
-
-    [HttpPost("{id}/share")]
-    [Authorize]
-    public async Task<IActionResult> ShareTemplate(int id)
-    {
-        var userId = GetCurrentUserId();
-        var command = new ShareTemplateCommand
-        {
-            TemplateId = id,
-            UserId = userId
-        };
-
-        var response = await _mediator.Send(command);
-        return Ok(response);
+            Name = request.Name,
+            CategoryId = request.CategoryId,
+            IsPaid = request.IsPaid,
+            Price = request.Price,
+            TemplateHtml = request.TemplateHtml,
+            TemplateCss = request.TemplateCss,
+            TemplateJs = request.TemplateJs,
+            SchemaJson = request.SchemaJson,
+            PreviewImageUrl = request.PreviewImageUrl,
+            CreatedBy = adminId.Value
+        });
+        return Ok(result);
     }
 
     private int? GetCurrentUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return userIdClaim != null ? int.Parse(userIdClaim) : null;
-    }
-
-    private string GetCurrentUserTier()
-    {
-        var tierClaim = User.FindFirst("SubscriptionTier")?.Value;
-        return tierClaim ?? "Free";
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return claim != null ? int.Parse(claim) : null;
     }
 }

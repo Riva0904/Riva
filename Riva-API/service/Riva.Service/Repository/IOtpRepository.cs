@@ -8,4 +8,5 @@ public interface IOtpRepository
     Task<EmailOtp?> GetLatestPendingOtpAsync(string email);
     Task MarkOtpUsedAsync(int otpId);
     Task ExpireAllPendingForEmailAsync(string email);
+    Task<bool> HasVerifiedOtpAsync(string email);
 }

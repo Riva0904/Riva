@@ -9,11 +9,16 @@ namespace Riva.Service.CommandHandler.Auth;
 public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 {
     private readonly IUserRepository _userRepository;
+    private readonly IOtpRepository _otpRepository;
     private readonly IJwtService _jwtService;
 
-    public LoginCommandHandler(IUserRepository userRepository, IJwtService jwtService)
+    public LoginCommandHandler(
+        IUserRepository userRepository,
+        IOtpRepository otpRepository,
+        IJwtService jwtService)
     {
         _userRepository = userRepository;
+        _otpRepository = otpRepository;
         _jwtService = jwtService;
     }
 
@@ -26,10 +31,12 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             throw new UnauthorizedAccessException("Invalid credentials.");
 
         if (!user.IsActive)
-            throw new UnauthorizedAccessException("Account is disabled.");
+            throw new UnauthorizedAccessException("Account is disabled. Contact admin.");
 
-        if (user.Role == "Admin" && !user.IsVerified)
-            throw new UnauthorizedAccessException("Admin account not verified. Please check your email for the OTP.");
+        // All users must verify OTP before logging in
+        var hasVerifiedOtp = await _otpRepository.HasVerifiedOtpAsync(user.Email);
+        if (!hasVerifiedOtp)
+            throw new UnauthorizedAccessException("Account not verified. Please check your email for the OTP.");
 
         var token = _jwtService.GenerateToken(user);
 

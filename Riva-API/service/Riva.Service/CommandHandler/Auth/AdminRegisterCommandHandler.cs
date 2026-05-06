@@ -1,6 +1,4 @@
 using MediatR;
-using Microsoft.Extensions.Configuration;
-using Riva.Domain.Entity;
 using Riva.Dto.Auth;
 using Riva.Service.Command.Auth;
 using Riva.Service.Interfaces;
@@ -13,33 +11,26 @@ public class AdminRegisterCommandHandler : IRequestHandler<AdminRegisterCommand,
     private readonly IUserRepository _userRepository;
     private readonly IOtpRepository _otpRepository;
     private readonly IEmailService _emailService;
-    private readonly IConfiguration _configuration;
 
     public AdminRegisterCommandHandler(
         IUserRepository userRepository,
         IOtpRepository otpRepository,
-        IEmailService emailService,
-        IConfiguration configuration)
+        IEmailService emailService)
     {
         _userRepository = userRepository;
         _otpRepository = otpRepository;
         _emailService = emailService;
-        _configuration = configuration;
     }
 
     public async Task<AdminRegisterResponse> Handle(AdminRegisterCommand request, CancellationToken cancellationToken)
     {
-        var expectedSecret = _configuration["AdminRegistration:SecretKey"];
-        if (string.IsNullOrWhiteSpace(expectedSecret) || request.SecretKey != expectedSecret)
-            throw new UnauthorizedAccessException("Invalid admin secret key.");
-
         if (await _userRepository.GetByEmailAsync(request.Email) != null)
             throw new InvalidOperationException("An account with this email already exists.");
 
         if (await _userRepository.GetByUsernameAsync(request.Username) != null)
             throw new InvalidOperationException("Username is already taken.");
 
-        var admin = new User
+        var admin = new Riva.Domain.Entity.User
         {
             Username = request.Username,
             Email = request.Email,
@@ -53,35 +44,38 @@ public class AdminRegisterCommandHandler : IRequestHandler<AdminRegisterCommand,
         await _userRepository.AddAsync(admin);
         await _userRepository.SaveChangesAsync();
 
-        await SendOtpAsync(request.Email, request.Username);
+        var otpCode = Random.Shared.Next(100000, 999999).ToString();
 
-        return new AdminRegisterResponse
+        await _otpRepository.ExpireAllPendingForEmailAsync(request.Email);
+        await _otpRepository.SaveOtpAsync(new Riva.Domain.Entity.EmailOtp
         {
-            Message = "Admin account created. Check your email for the OTP to complete verification.",
-            Email = request.Email
-        };
-    }
-
-    private async Task SendOtpAsync(string email, string name)
-    {
-        await _otpRepository.ExpireAllPendingForEmailAsync(email);
-
-        var otpCode = GenerateOtp();
-        var otp = new EmailOtp
-        {
-            Email = email,
+            Email = request.Email,
             OtpCode = otpCode,
             ExpiryTime = DateTime.UtcNow.AddMinutes(10),
             Status = "Pending",
             CreatedAt = DateTime.UtcNow
+        });
+
+        // Try sending email — if SMTP is not configured, return OTP in response for dev use
+        var emailSent = false;
+        try
+        {
+            await _emailService.SendOtpEmailAsync(request.Email, request.Username, otpCode);
+            emailSent = true;
+        }
+        catch
+        {
+            // Email not configured — OTP included in response for development
+        }
+
+        var message = emailSent
+            ? "Admin account created. Check your email for the OTP."
+            : $"Admin account created. Email not configured — your OTP is: {otpCode}";
+
+        return new AdminRegisterResponse
+        {
+            Message = message,
+            Email = request.Email
         };
-
-        await _otpRepository.SaveOtpAsync(otp);
-        await _emailService.SendOtpEmailAsync(email, name, otpCode);
-    }
-
-    private static string GenerateOtp()
-    {
-        return Random.Shared.Next(100000, 999999).ToString();
     }
 }

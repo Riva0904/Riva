@@ -38,7 +38,7 @@ const AuthPanel: React.FC = () => {
     setStatus('Logging in...');
 
     try {
-      await login({ username, password });
+      await login({ emailOrUsername: username, password });
       const user = await getCurrentUser();
       setCurrentUser(user);
       setStatus(`Logged in as ${user.username} (${user.role})`);

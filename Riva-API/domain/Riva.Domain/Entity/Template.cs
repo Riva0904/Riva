@@ -14,9 +14,5 @@ public class Template
     public string? PreviewImageUrl { get; set; }
     public int CreatedBy { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-
-    // Navigation properties
-    public virtual Category? Category { get; set; }
-    public virtual User? Creator { get; set; }
-    public virtual ICollection<Payment>? Payments { get; set; }
+    public string? CategoryName { get; set; }
 }
