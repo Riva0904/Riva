@@ -3,16 +3,13 @@ using Riva.Dto.Template;
 
 namespace Riva.Service.Query.Template;
 
-public class GetTemplatesByTierQuery : IRequest<TemplateCategoryListDto>
+public class GetTemplatesQuery : IRequest<TemplatesListResponse>
 {
-    public string UserTier { get; set; } = "Free";
+    public int? CategoryId { get; set; }
+    public bool? IsPaid { get; set; }
 }
 
-public class GetTemplateCategoriesQuery : IRequest<TemplateCategoryListDto>
+public class GetTemplateByIdQuery : IRequest<TemplateDetailDto>
 {
-}
-
-public class GetSharedTemplateQuery : IRequest<SharedTemplateDto>
-{
-    public string ShareToken { get; set; } = string.Empty;
+    public int TemplateId { get; set; }
 }

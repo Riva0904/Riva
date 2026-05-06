@@ -1,108 +1,121 @@
-import React, { useEffect, useState } from 'react';
-import { getAllUsers, updateUserStatus, updateUserRole } from '../../api/admin';
-import type { UserDto } from '../../api/admin';
+import React, { useState } from 'react'
+import { TemplateList } from '../../components/TemplateList'
+import { TemplateForm } from '../../components/TemplateForm'
+import { TemplateDetailDto, getTemplateById } from '../../api/templates'
+import styles from '../../styles/AdminPage.module.scss'
+
+type Tab = 'templates' | 'users'
+type TemplateViewMode = 'list' | 'create' | 'edit'
 
 const AdminPage: React.FC = () => {
-  const [users, setUsers] = useState<UserDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('templates')
+  const [templateViewMode, setTemplateViewMode] = useState<TemplateViewMode>('list')
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateDetailDto | undefined>()
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const handleEditTemplate = async (templateId: number) => {
+    setLoading(true)
     try {
-      setLoading(true);
-      const userList = await getAllUsers();
-      setUsers(userList);
+      const template = await getTemplateById(templateId)
+      setSelectedTemplate(template)
+      setTemplateViewMode('edit')
     } catch (err) {
-      setError('Failed to load users');
+      alert(err instanceof Error ? err.message : 'Failed to load template')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const handleStatusChange = async (id: number, isActive: boolean) => {
-    try {
-      await updateUserStatus(id, isActive);
-      setUsers(users.map(user =>
-        user.id === id ? { ...user, isActive } : user
-      ));
-    } catch (err) {
-      alert('Failed to update user status');
-    }
-  };
+  const handleCreateTemplate = () => {
+    setSelectedTemplate(undefined)
+    setTemplateViewMode('create')
+  }
 
-  const handleRoleChange = async (id: number, role: string) => {
-    try {
-      await updateUserRole(id, role);
-      setUsers(users.map(user =>
-        user.id === id ? { ...user, role } : user
-      ));
-    } catch (err) {
-      alert('Failed to update user role');
-    }
-  };
+  const handleTemplateFormSubmit = (templateId?: number) => {
+    setTemplateViewMode('list')
+    setSelectedTemplate(undefined)
+  }
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  const handleTemplateFormCancel = () => {
+    setTemplateViewMode('list')
+    setSelectedTemplate(undefined)
+  }
+
+  const handleTemplateListRefresh = () => {
+    // Trigger refresh of template list
+  }
 
   return (
-    <div className="admin-page p-6">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+    <div className={styles.adminPage}>
+      <header className={styles.header}>
+        <h1>Admin Dashboard</h1>
+        <p>Manage templates, categories, and users</p>
+      </header>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">User Management</h2>
+      <div className={styles.container}>
+        <nav className={styles.tabs}>
+          <button
+            className={`${styles.tab} ${activeTab === 'templates' ? styles.active : ''}`}
+            onClick={() => setActiveTab('templates')}
+          >
+            Templates
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'users' ? styles.active : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            Users
+          </button>
+        </nav>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2 text-left">ID</th>
-                <th className="px-4 py-2 text-left">Username</th>
-                <th className="px-4 py-2 text-left">Email</th>
-                <th className="px-4 py-2 text-left">Role</th>
-                <th className="px-4 py-2 text-left">Active</th>
-                <th className="px-4 py-2 text-left">Created</th>
-                <th className="px-4 py-2 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="border-t">
-                  <td className="px-4 py-2">{user.id}</td>
-                  <td className="px-4 py-2">{user.username}</td>
-                  <td className="px-4 py-2">{user.email}</td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                      className="border rounded px-2 py-1"
+        <div className={styles.content}>
+          {/* Templates Section */}
+          {activeTab === 'templates' && (
+            <section className={styles.section}>
+              {templateViewMode === 'list' ? (
+                <>
+                  <div className={styles.sectionHeader}>
+                    <h2>Template Management</h2>
+                    <button
+                      onClick={handleCreateTemplate}
+                      className={styles.primaryBtn}
                     >
-                      <option value="User">User</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="checkbox"
-                      checked={user.isActive}
-                      onChange={(e) => handleStatusChange(user.id, e.target.checked)}
-                    />
-                  </td>
-                  <td className="px-4 py-2">{new Date(user.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-2">
-                    {/* Additional actions can be added here */}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      + Create Template
+                    </button>
+                  </div>
+                  <TemplateList
+                    onEdit={handleEditTemplate}
+                    onRefresh={handleTemplateListRefresh}
+                  />
+                </>
+              ) : templateViewMode === 'create' ? (
+                <TemplateForm
+                  onSubmit={handleTemplateFormSubmit}
+                  onCancel={handleTemplateFormCancel}
+                />
+              ) : templateViewMode === 'edit' ? (
+                <TemplateForm
+                  template={selectedTemplate}
+                  onSubmit={handleTemplateFormSubmit}
+                  onCancel={handleTemplateFormCancel}
+                />
+              ) : null}
+            </section>
+          )}
+
+          {/* Users Section */}
+          {activeTab === 'users' && (
+            <section className={styles.section}>
+              <h2>User Management</h2>
+              <div className={styles.placeholder}>
+                User management features coming soon...
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AdminPage;
+export default AdminPage

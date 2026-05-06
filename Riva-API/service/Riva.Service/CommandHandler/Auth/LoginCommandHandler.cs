@@ -19,11 +19,17 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByUsernameAsync(request.Username);
+        var user = await _userRepository.GetByEmailAsync(request.EmailOrUsername)
+                   ?? await _userRepository.GetByUsernameAsync(request.EmailOrUsername);
+
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-        {
-            throw new UnauthorizedAccessException("Invalid credentials");
-        }
+            throw new UnauthorizedAccessException("Invalid credentials.");
+
+        if (!user.IsActive)
+            throw new UnauthorizedAccessException("Account is disabled.");
+
+        if (user.Role == "Admin" && !user.IsVerified)
+            throw new UnauthorizedAccessException("Admin account not verified. Please check your email for the OTP.");
 
         var token = _jwtService.GenerateToken(user);
 
@@ -31,6 +37,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         {
             Token = token,
             Username = user.Username,
+            Email = user.Email,
             Role = user.Role
         };
     }

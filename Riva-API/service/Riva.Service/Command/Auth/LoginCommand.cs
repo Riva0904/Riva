@@ -5,6 +5,6 @@ namespace Riva.Service.Command.Auth;
 
 public class LoginCommand : IRequest<LoginResponse>
 {
-    public string Username { get; set; } = string.Empty;
+    public string EmailOrUsername { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }

@@ -1,11 +1,13 @@
-namespace Riva.Domain.Entity;
+using MediatR;
+using Riva.Dto.Template;
 
-public class Template
+namespace Riva.Service.Command.Template;
+
+public class AddTemplateCommand : IRequest<AddTemplateResponse>
 {
-    public int TemplateId { get; set; }
     public string Name { get; set; } = string.Empty;
     public int CategoryId { get; set; }
-    public bool IsPaid { get; set; } = false;
+    public bool IsPaid { get; set; }
     public decimal? Price { get; set; }
     public string TemplateHtml { get; set; } = string.Empty;
     public string? TemplateCss { get; set; }
@@ -13,10 +15,4 @@ public class Template
     public string SchemaJson { get; set; } = "[]";
     public string? PreviewImageUrl { get; set; }
     public int CreatedBy { get; set; }
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-
-    // Navigation properties
-    public virtual Category? Category { get; set; }
-    public virtual User? Creator { get; set; }
-    public virtual ICollection<Payment>? Payments { get; set; }
 }

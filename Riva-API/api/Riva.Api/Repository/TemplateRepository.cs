@@ -1,140 +1,120 @@
-using Riva.Service.Repository;
-using Riva.Domain.Entity;
-using Riva.Api.Data;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.SqlClient;
+using Riva.Api.Data;
+using Riva.Domain.Entity;
+using Riva.Service.Repository;
 
 namespace Riva.Api.Repository;
 
 public class TemplateRepository : ITemplateRepository
 {
-    private readonly DatabaseConnection _dbConnection;
+    private readonly DatabaseConnection _db;
 
-    public TemplateRepository(DatabaseConnection dbConnection)
+    public TemplateRepository(DatabaseConnection db)
     {
-        _dbConnection = dbConnection;
+        _db = db;
     }
 
-    public async Task<int> CreateTemplateAsync(Riva.Domain.Entity.Template template)
+    public async Task<int> AddTemplateAsync(Template t)
     {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("sp_CreateTemplate", connection);
-        command.CommandType = CommandType.StoredProcedure;
+        const string sql = @"
+            INSERT INTO Templates
+                (Name, CategoryId, IsPaid, Price, TemplateHtml, TemplateCss, TemplateJs, SchemaJson, PreviewImageUrl, CreatedBy, CreatedDate)
+            OUTPUT INSERTED.TemplateId
+            VALUES
+                (@Name, @CategoryId, @IsPaid, @Price, @TemplateHtml, @TemplateCss, @TemplateJs, @SchemaJson, @PreviewImageUrl, @CreatedBy, @CreatedDate)";
 
-        command.Parameters.AddWithValue("@TemplateId", template.TemplateId);
-        command.Parameters.AddWithValue("@Title", template.Title);
-        command.Parameters.AddWithValue("@RecipientName", (object?)template.RecipientName ?? DBNull.Value);
-        command.Parameters.AddWithValue("@Greeting", (object?)template.Greeting ?? DBNull.Value);
-        command.Parameters.AddWithValue("@Location", (object?)template.Location ?? DBNull.Value);
-        command.Parameters.AddWithValue("@EventDate", (object?)template.EventDate ?? DBNull.Value);
-        command.Parameters.AddWithValue("@PersonalMessage", (object?)template.PersonalMessage ?? DBNull.Value);
-        command.Parameters.AddWithValue("@IncludeGoogleMaps", template.IncludeGoogleMaps);
-        command.Parameters.AddWithValue("@UserId", (object?)template.UserId ?? DBNull.Value);
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Name", t.Name);
+        cmd.Parameters.AddWithValue("@CategoryId", t.CategoryId);
+        cmd.Parameters.AddWithValue("@IsPaid", t.IsPaid);
+        cmd.Parameters.AddWithValue("@Price", (object?)t.Price ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TemplateHtml", t.TemplateHtml);
+        cmd.Parameters.AddWithValue("@TemplateCss", (object?)t.TemplateCss ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TemplateJs", (object?)t.TemplateJs ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@SchemaJson", t.SchemaJson);
+        cmd.Parameters.AddWithValue("@PreviewImageUrl", (object?)t.PreviewImageUrl ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@CreatedBy", t.CreatedBy);
+        cmd.Parameters.AddWithValue("@CreatedDate", t.CreatedDate);
 
-        var result = await command.ExecuteScalarAsync();
+        var result = await cmd.ExecuteScalarAsync();
         return Convert.ToInt32(result);
     }
 
-    public async Task<Riva.Domain.Entity.Template?> GetTemplateByIdAsync(int id)
+    public async Task<Template?> GetByIdAsync(int templateId)
     {
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Templates WHERE Id = @Id", connection);
-        command.Parameters.AddWithValue("@Id", id);
+        const string sql = @"
+            SELECT t.*, c.Name AS CategoryName
+            FROM Templates t
+            LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
+            WHERE t.TemplateId = @TemplateId";
 
-        using var reader = await command.ExecuteReaderAsync();
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@TemplateId", templateId);
+        using var reader = await cmd.ExecuteReaderAsync();
 
         if (await reader.ReadAsync())
-        {
-            return new Riva.Domain.Entity.Template
-            {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                TemplateId = reader.GetInt32(reader.GetOrdinal("TemplateId")),
-                Title = reader.GetString(reader.GetOrdinal("Title")),
-                RecipientName = reader.IsDBNull(reader.GetOrdinal("RecipientName")) ? null : reader.GetString(reader.GetOrdinal("RecipientName")),
-                Greeting = reader.IsDBNull(reader.GetOrdinal("Greeting")) ? null : reader.GetString(reader.GetOrdinal("Greeting")),
-                Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
-                EventDate = reader.IsDBNull(reader.GetOrdinal("EventDate")) ? null : (DateTime?)reader.GetDateTime(reader.GetOrdinal("EventDate")),
-                PersonalMessage = reader.IsDBNull(reader.GetOrdinal("PersonalMessage")) ? null : reader.GetString(reader.GetOrdinal("PersonalMessage")),
-                IncludeGoogleMaps = reader.GetBoolean(reader.GetOrdinal("IncludeGoogleMaps")),
-                Tier = reader.IsDBNull(reader.GetOrdinal("Tier")) ? null : reader.GetString(reader.GetOrdinal("Tier")),
-                MaxPhotos = reader.IsDBNull(reader.GetOrdinal("MaxPhotos")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("MaxPhotos")),
-                ShareToken = reader.IsDBNull(reader.GetOrdinal("ShareToken")) ? null : reader.GetString(reader.GetOrdinal("ShareToken")),
-                IsPublic = reader.GetBoolean(reader.GetOrdinal("IsPublic")),
-                ViewCount = reader.GetInt32(reader.GetOrdinal("ViewCount")),
-                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("UserId"))
-            };
-        }
+            return Map(reader);
 
         return null;
     }
 
-    public async Task<IEnumerable<Riva.Domain.Entity.Template>> GetTemplatesByUserIdAsync(int userId)
+    public async Task<IEnumerable<Template>> GetAllAsync(int? categoryId, bool? isPaid)
     {
-        var templates = new List<Riva.Domain.Entity.Template>();
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Templates WHERE UserId = @UserId", connection);
-        command.Parameters.AddWithValue("@UserId", userId);
+        var sql = @"
+            SELECT t.TemplateId, t.Name, t.CategoryId, t.IsPaid, t.Price,
+                   t.SchemaJson, t.PreviewImageUrl, t.CreatedBy, t.CreatedDate,
+                   c.Name AS CategoryName
+            FROM Templates t
+            LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
+            WHERE 1=1";
 
-        using var reader = await command.ExecuteReaderAsync();
+        if (categoryId.HasValue) sql += " AND t.CategoryId = @CategoryId";
+        if (isPaid.HasValue) sql += " AND t.IsPaid = @IsPaid";
+        sql += " ORDER BY t.CreatedDate DESC";
 
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        if (categoryId.HasValue) cmd.Parameters.AddWithValue("@CategoryId", categoryId.Value);
+        if (isPaid.HasValue) cmd.Parameters.AddWithValue("@IsPaid", isPaid.Value);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        var list = new List<Template>();
         while (await reader.ReadAsync())
         {
-            templates.Add(new Riva.Domain.Entity.Template
+            list.Add(new Template
             {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
                 TemplateId = reader.GetInt32(reader.GetOrdinal("TemplateId")),
-                Title = reader.GetString(reader.GetOrdinal("Title")),
-                RecipientName = reader.IsDBNull(reader.GetOrdinal("RecipientName")) ? null : reader.GetString(reader.GetOrdinal("RecipientName")),
-                Greeting = reader.IsDBNull(reader.GetOrdinal("Greeting")) ? null : reader.GetString(reader.GetOrdinal("Greeting")),
-                Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
-                EventDate = reader.IsDBNull(reader.GetOrdinal("EventDate")) ? null : (DateTime?)reader.GetDateTime(reader.GetOrdinal("EventDate")),
-                PersonalMessage = reader.IsDBNull(reader.GetOrdinal("PersonalMessage")) ? null : reader.GetString(reader.GetOrdinal("PersonalMessage")),
-                IncludeGoogleMaps = reader.GetBoolean(reader.GetOrdinal("IncludeGoogleMaps")),
-                Tier = reader.IsDBNull(reader.GetOrdinal("Tier")) ? null : reader.GetString(reader.GetOrdinal("Tier")),
-                MaxPhotos = reader.IsDBNull(reader.GetOrdinal("MaxPhotos")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("MaxPhotos")),
-                ShareToken = reader.IsDBNull(reader.GetOrdinal("ShareToken")) ? null : reader.GetString(reader.GetOrdinal("ShareToken")),
-                IsPublic = reader.GetBoolean(reader.GetOrdinal("IsPublic")),
-                ViewCount = reader.GetInt32(reader.GetOrdinal("ViewCount")),
-                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("UserId"))
+                Name = reader.GetString(reader.GetOrdinal("Name")),
+                CategoryId = reader.GetInt32(reader.GetOrdinal("CategoryId")),
+                IsPaid = reader.GetBoolean(reader.GetOrdinal("IsPaid")),
+                Price = reader.IsDBNull(reader.GetOrdinal("Price")) ? null : reader.GetDecimal(reader.GetOrdinal("Price")),
+                SchemaJson = reader.GetString(reader.GetOrdinal("SchemaJson")),
+                PreviewImageUrl = reader.IsDBNull(reader.GetOrdinal("PreviewImageUrl")) ? null : reader.GetString(reader.GetOrdinal("PreviewImageUrl")),
+                CreatedBy = reader.GetInt32(reader.GetOrdinal("CreatedBy")),
+                CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                CategoryName = reader.IsDBNull(reader.GetOrdinal("CategoryName")) ? null : reader.GetString(reader.GetOrdinal("CategoryName"))
             });
         }
-
-        return templates;
+        return list;
     }
 
-    public async Task<IEnumerable<Riva.Domain.Entity.Template>> GetAllTemplatesAsync()
+    private static Template Map(SqlDataReader r) => new()
     {
-        var templates = new List<Riva.Domain.Entity.Template>();
-        using var connection = await _dbConnection.GetOpenConnectionAsync();
-        using var command = new SqlCommand("SELECT * FROM Templates", connection);
-
-        using var reader = await command.ExecuteReaderAsync();
-
-        while (await reader.ReadAsync())
-        {
-            templates.Add(new Riva.Domain.Entity.Template
-            {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                TemplateId = reader.GetInt32(reader.GetOrdinal("TemplateId")),
-                Title = reader.GetString(reader.GetOrdinal("Title")),
-                RecipientName = reader.IsDBNull(reader.GetOrdinal("RecipientName")) ? null : reader.GetString(reader.GetOrdinal("RecipientName")),
-                Greeting = reader.IsDBNull(reader.GetOrdinal("Greeting")) ? null : reader.GetString(reader.GetOrdinal("Greeting")),
-                Location = reader.IsDBNull(reader.GetOrdinal("Location")) ? null : reader.GetString(reader.GetOrdinal("Location")),
-                EventDate = reader.IsDBNull(reader.GetOrdinal("EventDate")) ? null : (DateTime?)reader.GetDateTime(reader.GetOrdinal("EventDate")),
-                PersonalMessage = reader.IsDBNull(reader.GetOrdinal("PersonalMessage")) ? null : reader.GetString(reader.GetOrdinal("PersonalMessage")),
-                IncludeGoogleMaps = reader.GetBoolean(reader.GetOrdinal("IncludeGoogleMaps")),
-                Tier = reader.IsDBNull(reader.GetOrdinal("Tier")) ? null : reader.GetString(reader.GetOrdinal("Tier")),
-                MaxPhotos = reader.IsDBNull(reader.GetOrdinal("MaxPhotos")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("MaxPhotos")),
-                ShareToken = reader.IsDBNull(reader.GetOrdinal("ShareToken")) ? null : reader.GetString(reader.GetOrdinal("ShareToken")),
-                IsPublic = reader.GetBoolean(reader.GetOrdinal("IsPublic")),
-                ViewCount = reader.GetInt32(reader.GetOrdinal("ViewCount")),
-                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? null : (int?)reader.GetInt32(reader.GetOrdinal("UserId"))
-            });
-        }
-
-        return templates;
-    }
+        TemplateId = r.GetInt32(r.GetOrdinal("TemplateId")),
+        Name = r.GetString(r.GetOrdinal("Name")),
+        CategoryId = r.GetInt32(r.GetOrdinal("CategoryId")),
+        IsPaid = r.GetBoolean(r.GetOrdinal("IsPaid")),
+        Price = r.IsDBNull(r.GetOrdinal("Price")) ? null : r.GetDecimal(r.GetOrdinal("Price")),
+        TemplateHtml = r.GetString(r.GetOrdinal("TemplateHtml")),
+        TemplateCss = r.IsDBNull(r.GetOrdinal("TemplateCss")) ? null : r.GetString(r.GetOrdinal("TemplateCss")),
+        TemplateJs = r.IsDBNull(r.GetOrdinal("TemplateJs")) ? null : r.GetString(r.GetOrdinal("TemplateJs")),
+        SchemaJson = r.GetString(r.GetOrdinal("SchemaJson")),
+        PreviewImageUrl = r.IsDBNull(r.GetOrdinal("PreviewImageUrl")) ? null : r.GetString(r.GetOrdinal("PreviewImageUrl")),
+        CreatedBy = r.GetInt32(r.GetOrdinal("CreatedBy")),
+        CreatedDate = r.GetDateTime(r.GetOrdinal("CreatedDate")),
+        CategoryName = r.IsDBNull(r.GetOrdinal("CategoryName")) ? null : r.GetString(r.GetOrdinal("CategoryName"))
+    };
 }

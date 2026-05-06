@@ -1,9 +1,9 @@
 namespace Riva.Domain.Entity;
 
-public class PaymentOtp
+public class EmailOtp
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
+    public int? UserId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string OtpCode { get; set; } = string.Empty;
     public DateTime ExpiryTime { get; set; }
@@ -16,7 +16,7 @@ public class PaymentOtp
     // Computed properties
     public bool IsExpired => DateTime.UtcNow > ExpiryTime;
     public bool IsPending => Status == "Pending";
-
+    
     public void MarkAsUsed()
     {
         Status = "Used";

@@ -1,83 +1,121 @@
 import { apiFetch } from './client'
 
-export interface TemplateDefinition {
+// Template List Item (summary view)
+export interface TemplateListItemDto {
   templateId: number
   name: string
-  description: string
-  imageUrl: string
-  tier: string
-  maxPhotos: number
-  sortOrder: number
+  categoryId: number
+  categoryName: string
+  isPaid: boolean
+  price: number | null
+  previewImageUrl: string | null
+  createdDate: string
+  createdByUsername: string
 }
 
-export interface TemplateRequest {
+// Template Detail (full view)
+export interface TemplateDetailDto {
   templateId: number
-  title: string
-  recipientName: string
-  greeting: string
-  location: string
-  eventDate: string
-  personalMessage: string
-  includeGoogleMaps: boolean
+  name: string
+  categoryId: number
+  categoryName: string
+  isPaid: boolean
+  price: number | null
+  templateHtml: string
+  templateCss: string | null
+  templateJs: string | null
+  schemaJson: string
+  previewImageUrl: string | null
+  createdDate: string
+  createdBy: number
+  createdByUsername: string
 }
 
-export interface TemplatePreviewResponse {
+// Request to add a new template (Admin only)
+export interface AddTemplateRequest {
+  name: string
+  categoryId: number
+  isPaid: boolean
+  price: number | null
+  templateHtml: string
+  templateCss?: string
+  templateJs?: string
+  schemaJson: string
+  previewImageUrl?: string
+}
+
+export interface AddTemplateResponse {
   templateId: number
-  previewHtml: string
   message: string
+  createdDate: string
 }
 
-export interface SharedTemplate {
-  id: number
-  templateId: number
-  title: string
-  recipientName: string
-  greeting: string
-  location: string
-  eventDate: string | null
-  personalMessage: string
-  includeGoogleMaps: boolean
-  viewCount: number
-  createdAt: string
-  creatorName: string
+// Request to update a template
+export interface UpdateTemplateRequest {
+  name: string
+  categoryId: number
+  isPaid: boolean
+  price: number | null
+  templateHtml: string
+  templateCss?: string
+  templateJs?: string
+  schemaJson: string
+  previewImageUrl?: string
 }
 
-export interface ShareTemplateResponse {
-  shareToken: string
-  shareUrl: string
-  message: string
+// Query filters
+export interface GetTemplatesRequest {
+  categoryId?: number
+  isPaid?: boolean
 }
 
-export async function getTemplates(): Promise<TemplateDefinition[]> {
-  return apiFetch<TemplateDefinition[]>('templates', {
+export interface TemplatesListResponse {
+  templates: TemplateListItemDto[]
+  total: number
+}
+
+// Get all templates (filters optional)
+export async function getTemplates(filters?: GetTemplatesRequest): Promise<TemplatesListResponse> {
+  const params = new URLSearchParams()
+  if (filters?.categoryId) params.append('categoryId', filters.categoryId.toString())
+  if (filters?.isPaid !== undefined) params.append('isPaid', filters.isPaid.toString())
+  
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return apiFetch<TemplatesListResponse>(`/postapi/template${query}`, {
     method: 'GET',
   })
 }
 
-export async function getTemplateCategories(): Promise<TemplateDefinition[]> {
-  return apiFetch<TemplateDefinition[]>('templates/categories', {
+// Get template by ID
+export async function getTemplateById(templateId: number): Promise<TemplateDetailDto> {
+  return apiFetch<TemplateDetailDto>(`/postapi/template/${templateId}`, {
     method: 'GET',
   })
 }
 
-export async function getSharedTemplate(shareToken: string): Promise<SharedTemplate> {
-  return apiFetch<SharedTemplate>(`templates/shared/${shareToken}`, {
-    method: 'GET',
-  })
-}
-
-export async function generateTemplatePreview(request: TemplateRequest): Promise<TemplatePreviewResponse> {
-  return apiFetch<TemplatePreviewResponse>('templates/preview', {
+// Create new template (Admin only)
+export async function addTemplate(request: AddTemplateRequest): Promise<AddTemplateResponse> {
+  return apiFetch<AddTemplateResponse>('/postapi/template', {
     method: 'POST',
     body: JSON.stringify(request),
   })
 }
 
-export async function submitTemplate(request: TemplateRequest): Promise<TemplatePreviewResponse> {
-  return apiFetch<TemplatePreviewResponse>('templates/submit', {
-    method: 'POST',
+// Update template (Admin only)
+export async function updateTemplate(templateId: number, request: UpdateTemplateRequest): Promise<AddTemplateResponse> {
+  return apiFetch<AddTemplateResponse>(`/postapi/template/${templateId}`, {
+    method: 'PUT',
     body: JSON.stringify(request),
   })
+}
+
+// Delete template (Admin only)
+export async function deleteTemplate(templateId: number): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/postapi/template/${templateId}`, {
+    method: 'DELETE',
+  })
+}
+
 }
 
 export async function shareTemplate(templateId: number): Promise<ShareTemplateResponse> {

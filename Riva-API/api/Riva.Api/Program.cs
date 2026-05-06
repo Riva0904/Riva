@@ -67,6 +67,7 @@ builder.Services.AddAuthorization(options =>
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IEmailService, Riva.Api.Services.EmailService>();
 builder.Services.AddScoped<Riva.Service.Repository.IUserRepository, Riva.Api.Repository.UserRepository>();
 
 var app = builder.Build();
