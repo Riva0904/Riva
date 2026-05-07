@@ -7,17 +7,34 @@ import UserDashboard from './pages/User/UserDashboard';
 import RegisterPage from './pages/Auth/RegisterPage';
 import LoginPage from './pages/Auth/LoginPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+import CreateInvitationPage from './pages/Invitation/CreateInvitationPage';
+import MyInvitationsPage from './pages/Invitation/MyInvitationsPage';
+import PublicInvitePage from './pages/Public/PublicInvitePage';
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/"          element={<AppLayout><HomePage /></AppLayout>} />
-        <Route path="/register"         element={<RegisterPage />} />
-        <Route path="/login"            element={<LoginPage />} />
-        <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/admin"     element={<AdminPage />} />
+        {/* ── Public ── */}
+        <Route path="/"                  element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/invite/:slug"      element={<PublicInvitePage />} />
+
+        {/* ── Auth ── */}
+        <Route path="/register"          element={<RegisterPage />} />
+        <Route path="/login"             element={<LoginPage />} />
+        <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
+
+        {/* ── User ── */}
+        <Route path="/dashboard"         element={<UserDashboard />} />
+        <Route path="/my-invitations"    element={<MyInvitationsPage />} />
+
+        {/* Create invitation from a template */}
+        <Route path="/invitation/new/:templateId"   element={<CreateInvitationPage />} />
+        {/* Edit existing invitation */}
+        <Route path="/invitation/:invitationId/edit" element={<CreateInvitationPage />} />
+
+        {/* ── Admin ── */}
+        <Route path="/admin"             element={<AdminPage />} />
       </Routes>
     </Router>
   );

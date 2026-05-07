@@ -20,14 +20,17 @@ public class GetTemplatesQueryHandler : IRequestHandler<GetTemplatesQuery, Templ
 
         var items = templates.Select(t => new TemplateListItemDto
         {
-            TemplateId = t.TemplateId,
-            Name = t.Name,
-            CategoryId = t.CategoryId,
-            CategoryName = t.CategoryName ?? string.Empty,
-            IsPaid = t.IsPaid,
-            Price = t.Price,
+            TemplateId      = t.TemplateId,
+            Name            = t.Name,
+            Description     = t.Description,
+            CategoryId      = t.CategoryId,
+            CategoryName    = t.CategoryName ?? string.Empty,
+            IsPaid          = t.IsPaid,
+            Price           = t.Price,
             PreviewImageUrl = t.PreviewImageUrl,
-            CreatedDate = t.CreatedDate
+            ThumbnailUrl    = t.ThumbnailUrl,
+            Status          = t.Status,
+            CreatedDate     = t.CreatedDate
         }).ToList();
 
         return new TemplatesListResponse

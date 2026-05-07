@@ -1,0 +1,59 @@
+using MediatR;
+using Riva.Dto.Invitation;
+using Riva.Service.Query.Invitation;
+using Riva.Service.Repository;
+
+namespace Riva.Service.QueryHandler.Invitation;
+
+public class GetInvitationByIdQueryHandler
+    : IRequestHandler<GetInvitationByIdQuery, InvitationDetailDto>
+{
+    private readonly IInvitationRepository _invitations;
+
+    public GetInvitationByIdQueryHandler(IInvitationRepository invitations)
+        => _invitations = invitations;
+
+    public async Task<InvitationDetailDto> Handle(
+        GetInvitationByIdQuery request, CancellationToken cancellationToken)
+    {
+        var inv = await _invitations.GetByIdAsync(request.InvitationId)
+            ?? throw new KeyNotFoundException("Invitation not found.");
+
+        // UserId == 0 means admin bypass
+        if (request.UserId != 0 && inv.UserId != request.UserId)
+            throw new UnauthorizedAccessException("You do not own this invitation.");
+
+        return new InvitationDetailDto
+        {
+            InvitationId    = inv.InvitationId,
+            TemplateId      = inv.TemplateId,
+            TemplateName    = inv.Template?.Name ?? string.Empty,
+            ThumbnailUrl    = inv.Template?.ThumbnailUrl,
+            Title           = inv.Title,
+            Slug            = inv.Slug,
+            Status          = inv.Status,
+            IsPublic        = inv.IsPublic,
+            PublishedAt     = inv.PublishedAt,
+            CreatedAt       = inv.CreatedAt,
+            ViewCount       = inv.ViewCount,
+            FieldValuesJson = inv.FieldValuesJson,
+            SeoTitle        = inv.SeoTitle,
+            SeoDescription  = inv.SeoDescription,
+            ExpiresAt       = inv.ExpiresAt,
+            TemplateHtml    = inv.Template?.TemplateHtml ?? string.Empty,
+            TemplateCss     = inv.Template?.TemplateCss,
+            TemplateJs      = inv.Template?.TemplateJs,
+            SchemaJson      = inv.Template?.SchemaJson ?? "[]",
+            Media           = inv.Media.Select(m => new InvitationMediaDto
+            {
+                MediaId       = m.MediaId,
+                FieldName     = m.FieldName,
+                OriginalName  = m.OriginalName,
+                FileUrl       = m.FileUrl,
+                MediaType     = m.MediaType,
+                FileSizeBytes = m.FileSizeBytes,
+                UploadedAt    = m.UploadedAt
+            }).ToList()
+        };
+    }
+}

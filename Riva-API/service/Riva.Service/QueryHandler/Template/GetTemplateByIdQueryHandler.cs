@@ -21,18 +21,21 @@ public class GetTemplateByIdQueryHandler : IRequestHandler<GetTemplateByIdQuery,
 
         return new TemplateDetailDto
         {
-            TemplateId = template.TemplateId,
-            Name = template.Name,
-            CategoryId = template.CategoryId,
-            CategoryName = template.CategoryName ?? string.Empty,
-            IsPaid = template.IsPaid,
-            Price = template.Price,
-            TemplateHtml = template.TemplateHtml,
-            TemplateCss = template.TemplateCss,
-            TemplateJs = template.TemplateJs,
-            SchemaJson = template.SchemaJson,
+            TemplateId      = template.TemplateId,
+            Name            = template.Name,
+            Description     = template.Description,
+            CategoryId      = template.CategoryId,
+            CategoryName    = template.CategoryName ?? string.Empty,
+            IsPaid          = template.IsPaid,
+            Price           = template.Price,
+            TemplateHtml    = template.TemplateHtml,
+            TemplateCss     = template.TemplateCss,
+            TemplateJs      = template.TemplateJs,
+            SchemaJson      = template.SchemaJson,
             PreviewImageUrl = template.PreviewImageUrl,
-            CreatedDate = template.CreatedDate
+            ThumbnailUrl    = template.ThumbnailUrl,
+            Status          = template.Status,
+            CreatedDate     = template.CreatedDate
         };
     }
 }

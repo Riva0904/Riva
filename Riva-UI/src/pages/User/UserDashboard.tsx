@@ -124,6 +124,7 @@ const UserDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <a href="/my-invitations" className="navbar-btn-outline hidden sm:inline-flex">🎉 My Invitations</a>
             {getStoredRole() === 'Admin' && (
               <a href="/admin" className="navbar-btn-primary">Admin Panel</a>
             )}

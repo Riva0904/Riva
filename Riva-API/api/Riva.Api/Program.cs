@@ -83,13 +83,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("AdminOnly", p => p.RequireRole("Admin")));
 
+// ── Core services ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+// ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
+
+// ── Template Engine services ──────────────────────────────────────────────────
+builder.Services.AddScoped<IPlaceholderService, PlaceholderService>();
+builder.Services.AddScoped<ISlugGeneratorService, SlugGeneratorService>();
+builder.Services.AddScoped<IHtmlRenderService, HtmlRenderService>();
+builder.Services.AddScoped<IMediaUploadService, MediaUploadService>();
+
+// ── Response caching (Redis-ready: swap AddResponseCaching for AddStackExchangeRedisCache) ──
+builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
@@ -101,6 +114,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
+app.UseStaticFiles();          // serves /wwwroot/uploads/
+app.UseResponseCaching();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();

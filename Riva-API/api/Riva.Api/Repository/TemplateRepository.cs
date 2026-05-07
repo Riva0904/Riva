@@ -1,4 +1,3 @@
-using System.Data;
 using System.Data.SqlClient;
 using Riva.Api.Data;
 using Riva.Domain.Entity;
@@ -9,112 +8,130 @@ namespace Riva.Api.Repository;
 public class TemplateRepository : ITemplateRepository
 {
     private readonly DatabaseConnection _db;
-
-    public TemplateRepository(DatabaseConnection db)
-    {
-        _db = db;
-    }
+    public TemplateRepository(DatabaseConnection db) => _db = db;
 
     public async Task<int> AddTemplateAsync(Template t)
     {
         const string sql = @"
             INSERT INTO Templates
-                (Name, CategoryId, IsPaid, Price, TemplateHtml, TemplateCss, TemplateJs, SchemaJson, PreviewImageUrl, CreatedBy, CreatedDate)
+                (Name, CategoryId, IsPaid, Price, TemplateHtml, TemplateCss, TemplateJs,
+                 SchemaJson, PreviewImageUrl, ThumbnailUrl, Description, Status, Version,
+                 CreatedBy, CreatedDate)
             OUTPUT INSERTED.TemplateId
             VALUES
-                (@Name, @CategoryId, @IsPaid, @Price, @TemplateHtml, @TemplateCss, @TemplateJs, @SchemaJson, @PreviewImageUrl, @CreatedBy, @CreatedDate)";
+                (@Name, @CategoryId, @IsPaid, @Price, @TemplateHtml, @TemplateCss, @TemplateJs,
+                 @SchemaJson, @PreviewImageUrl, @ThumbnailUrl, @Description, @Status, @Version,
+                 @CreatedBy, @CreatedDate)";
 
         using var conn = await _db.GetOpenConnectionAsync();
-        using var cmd = new SqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@Name", t.Name);
-        cmd.Parameters.AddWithValue("@CategoryId", t.CategoryId);
-        cmd.Parameters.AddWithValue("@IsPaid", t.IsPaid);
-        cmd.Parameters.AddWithValue("@Price", (object?)t.Price ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@TemplateHtml", t.TemplateHtml);
-        cmd.Parameters.AddWithValue("@TemplateCss", (object?)t.TemplateCss ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@TemplateJs", (object?)t.TemplateJs ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@SchemaJson", t.SchemaJson);
-        cmd.Parameters.AddWithValue("@PreviewImageUrl", (object?)t.PreviewImageUrl ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@CreatedBy", t.CreatedBy);
-        cmd.Parameters.AddWithValue("@CreatedDate", t.CreatedDate);
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Name",           t.Name);
+        cmd.Parameters.AddWithValue("@CategoryId",     t.CategoryId);
+        cmd.Parameters.AddWithValue("@IsPaid",         t.IsPaid);
+        cmd.Parameters.AddWithValue("@Price",          (object?)t.Price          ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TemplateHtml",   t.TemplateHtml);
+        cmd.Parameters.AddWithValue("@TemplateCss",    (object?)t.TemplateCss    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TemplateJs",     (object?)t.TemplateJs     ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@SchemaJson",     t.SchemaJson);
+        cmd.Parameters.AddWithValue("@PreviewImageUrl",(object?)t.PreviewImageUrl ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@ThumbnailUrl",   (object?)t.ThumbnailUrl   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Description",    (object?)t.Description    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Status",         t.Status);
+        cmd.Parameters.AddWithValue("@Version",        t.Version);
+        cmd.Parameters.AddWithValue("@CreatedBy",      t.CreatedBy);
+        cmd.Parameters.AddWithValue("@CreatedDate",    t.CreatedDate);
 
-        var result = await cmd.ExecuteScalarAsync();
-        return Convert.ToInt32(result);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
     public async Task<Template?> GetByIdAsync(int templateId)
     {
         const string sql = @"
-            SELECT t.*, c.Name AS CategoryName
+            SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
+                   t.IsPaid, t.Price,
+                   t.TemplateHtml, t.TemplateCss, t.TemplateJs, t.SchemaJson,
+                   t.PreviewImageUrl, t.ThumbnailUrl,
+                   t.Status, t.Version, t.CreatedBy, t.CreatedDate, t.UpdatedDate,
+                   c.Name AS CategoryName
             FROM Templates t
             LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
             WHERE t.TemplateId = @TemplateId";
 
         using var conn = await _db.GetOpenConnectionAsync();
-        using var cmd = new SqlCommand(sql, conn);
+        using var cmd  = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@TemplateId", templateId);
-        using var reader = await cmd.ExecuteReaderAsync();
-
-        if (await reader.ReadAsync())
-            return Map(reader);
-
-        return null;
+        using var r = await cmd.ExecuteReaderAsync();
+        return await r.ReadAsync() ? Map(r) : null;
     }
 
     public async Task<IEnumerable<Template>> GetAllAsync(int? categoryId, bool? isPaid)
     {
         var sql = @"
-            SELECT t.TemplateId, t.Name, t.CategoryId, t.IsPaid, t.Price,
-                   t.SchemaJson, t.PreviewImageUrl, t.CreatedBy, t.CreatedDate,
+            SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
+                   t.IsPaid, t.Price, t.SchemaJson,
+                   t.PreviewImageUrl, t.ThumbnailUrl,
+                   t.Status, t.Version, t.CreatedBy, t.CreatedDate,
                    c.Name AS CategoryName
             FROM Templates t
             LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
-            WHERE 1=1";
+            WHERE t.Status = 'Published'";
 
         if (categoryId.HasValue) sql += " AND t.CategoryId = @CategoryId";
-        if (isPaid.HasValue) sql += " AND t.IsPaid = @IsPaid";
+        if (isPaid.HasValue)     sql += " AND t.IsPaid = @IsPaid";
         sql += " ORDER BY t.CreatedDate DESC";
 
         using var conn = await _db.GetOpenConnectionAsync();
-        using var cmd = new SqlCommand(sql, conn);
+        using var cmd  = new SqlCommand(sql, conn);
         if (categoryId.HasValue) cmd.Parameters.AddWithValue("@CategoryId", categoryId.Value);
-        if (isPaid.HasValue) cmd.Parameters.AddWithValue("@IsPaid", isPaid.Value);
+        if (isPaid.HasValue)     cmd.Parameters.AddWithValue("@IsPaid",     isPaid.Value);
 
-        using var reader = await cmd.ExecuteReaderAsync();
+        using var r = await cmd.ExecuteReaderAsync();
         var list = new List<Template>();
-        while (await reader.ReadAsync())
-        {
-            list.Add(new Template
-            {
-                TemplateId = reader.GetInt32(reader.GetOrdinal("TemplateId")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                CategoryId = reader.GetInt32(reader.GetOrdinal("CategoryId")),
-                IsPaid = reader.GetBoolean(reader.GetOrdinal("IsPaid")),
-                Price = reader.IsDBNull(reader.GetOrdinal("Price")) ? null : reader.GetDecimal(reader.GetOrdinal("Price")),
-                SchemaJson = reader.GetString(reader.GetOrdinal("SchemaJson")),
-                PreviewImageUrl = reader.IsDBNull(reader.GetOrdinal("PreviewImageUrl")) ? null : reader.GetString(reader.GetOrdinal("PreviewImageUrl")),
-                CreatedBy = reader.GetInt32(reader.GetOrdinal("CreatedBy")),
-                CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                CategoryName = reader.IsDBNull(reader.GetOrdinal("CategoryName")) ? null : reader.GetString(reader.GetOrdinal("CategoryName"))
-            });
-        }
+        while (await r.ReadAsync())
+            list.Add(MapSummary(r));
         return list;
     }
 
+    // ── Mappers ───────────────────────────────────────────────────────────────
+
     private static Template Map(SqlDataReader r) => new()
     {
-        TemplateId = r.GetInt32(r.GetOrdinal("TemplateId")),
-        Name = r.GetString(r.GetOrdinal("Name")),
-        CategoryId = r.GetInt32(r.GetOrdinal("CategoryId")),
-        IsPaid = r.GetBoolean(r.GetOrdinal("IsPaid")),
-        Price = r.IsDBNull(r.GetOrdinal("Price")) ? null : r.GetDecimal(r.GetOrdinal("Price")),
-        TemplateHtml = r.GetString(r.GetOrdinal("TemplateHtml")),
-        TemplateCss = r.IsDBNull(r.GetOrdinal("TemplateCss")) ? null : r.GetString(r.GetOrdinal("TemplateCss")),
-        TemplateJs = r.IsDBNull(r.GetOrdinal("TemplateJs")) ? null : r.GetString(r.GetOrdinal("TemplateJs")),
-        SchemaJson = r.GetString(r.GetOrdinal("SchemaJson")),
+        TemplateId      = r.GetInt32(r.GetOrdinal("TemplateId")),
+        Name            = r.GetString(r.GetOrdinal("Name")),
+        Description     = r.IsDBNull(r.GetOrdinal("Description"))     ? null : r.GetString(r.GetOrdinal("Description")),
+        CategoryId      = r.GetInt32(r.GetOrdinal("CategoryId")),
+        IsPaid          = r.GetBoolean(r.GetOrdinal("IsPaid")),
+        Price           = r.IsDBNull(r.GetOrdinal("Price"))           ? null : r.GetDecimal(r.GetOrdinal("Price")),
+        TemplateHtml    = r.GetString(r.GetOrdinal("TemplateHtml")),
+        TemplateCss     = r.IsDBNull(r.GetOrdinal("TemplateCss"))     ? null : r.GetString(r.GetOrdinal("TemplateCss")),
+        TemplateJs      = r.IsDBNull(r.GetOrdinal("TemplateJs"))      ? null : r.GetString(r.GetOrdinal("TemplateJs")),
+        SchemaJson      = r.GetString(r.GetOrdinal("SchemaJson")),
         PreviewImageUrl = r.IsDBNull(r.GetOrdinal("PreviewImageUrl")) ? null : r.GetString(r.GetOrdinal("PreviewImageUrl")),
-        CreatedBy = r.GetInt32(r.GetOrdinal("CreatedBy")),
-        CreatedDate = r.GetDateTime(r.GetOrdinal("CreatedDate")),
-        CategoryName = r.IsDBNull(r.GetOrdinal("CategoryName")) ? null : r.GetString(r.GetOrdinal("CategoryName"))
+        ThumbnailUrl    = r.IsDBNull(r.GetOrdinal("ThumbnailUrl"))    ? null : r.GetString(r.GetOrdinal("ThumbnailUrl")),
+        Status          = r.GetString(r.GetOrdinal("Status")),
+        Version         = r.GetInt32(r.GetOrdinal("Version")),
+        CreatedBy       = r.GetInt32(r.GetOrdinal("CreatedBy")),
+        CreatedDate     = r.GetDateTime(r.GetOrdinal("CreatedDate")),
+        UpdatedDate     = r.IsDBNull(r.GetOrdinal("UpdatedDate"))     ? null : r.GetDateTime(r.GetOrdinal("UpdatedDate")),
+        CategoryName    = r.IsDBNull(r.GetOrdinal("CategoryName"))    ? null : r.GetString(r.GetOrdinal("CategoryName")),
+    };
+
+    // Summary mapper — used by GetAllAsync (no Html/Css/Js columns selected)
+    private static Template MapSummary(SqlDataReader r) => new()
+    {
+        TemplateId      = r.GetInt32(r.GetOrdinal("TemplateId")),
+        Name            = r.GetString(r.GetOrdinal("Name")),
+        Description     = r.IsDBNull(r.GetOrdinal("Description"))     ? null : r.GetString(r.GetOrdinal("Description")),
+        CategoryId      = r.GetInt32(r.GetOrdinal("CategoryId")),
+        IsPaid          = r.GetBoolean(r.GetOrdinal("IsPaid")),
+        Price           = r.IsDBNull(r.GetOrdinal("Price"))           ? null : r.GetDecimal(r.GetOrdinal("Price")),
+        SchemaJson      = r.GetString(r.GetOrdinal("SchemaJson")),
+        PreviewImageUrl = r.IsDBNull(r.GetOrdinal("PreviewImageUrl")) ? null : r.GetString(r.GetOrdinal("PreviewImageUrl")),
+        ThumbnailUrl    = r.IsDBNull(r.GetOrdinal("ThumbnailUrl"))    ? null : r.GetString(r.GetOrdinal("ThumbnailUrl")),
+        Status          = r.GetString(r.GetOrdinal("Status")),
+        Version         = r.GetInt32(r.GetOrdinal("Version")),
+        CreatedBy       = r.GetInt32(r.GetOrdinal("CreatedBy")),
+        CreatedDate     = r.GetDateTime(r.GetOrdinal("CreatedDate")),
+        CategoryName    = r.IsDBNull(r.GetOrdinal("CategoryName"))    ? null : r.GetString(r.GetOrdinal("CategoryName")),
     };
 }
