@@ -38,6 +38,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         if (!hasVerifiedOtp)
             throw new UnauthorizedAccessException("Account not verified. Please check your email for the OTP.");
 
+        // Record the login time (fire-and-forget — never blocks the login response)
+        _ = _userRepository.UpdateLastLoginAsync(user.Id);
+
         var token = _jwtService.GenerateToken(user);
 
         return new LoginResponse

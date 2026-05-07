@@ -1,34 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPublicInvitationHtml } from '../../api/invitation';
+import { motion } from 'framer-motion';
+import { getPublicInvitationHtml, getPublicInvitationMeta } from '../../api/invitation';
+import RsvpCard from '../../components/RsvpCard';
+import ShareModal from '../../components/ShareModal';
 
-/**
- * Renders a published invitation as a full-screen iframe.
- * Uses srcdoc (not blob URL) so the inline CSS loads correctly without
- * any cross-origin or Content-Security-Policy issues.
- */
 const PublicInvitePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const [srcDoc,  setSrcDoc]  = useState<string | null>(null);
-  const [error,   setError]   = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [srcDoc,       setSrcDoc]       = useState<string | null>(null);
+  const [title,        setTitle]        = useState<string>('Digital Invitation');
+  const [error,        setError]        = useState<string | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [showShare,    setShowShare]    = useState(false);
 
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
-    getPublicInvitationHtml(slug)
-      .then(html => setSrcDoc(html))
-      .catch(() => setError('This invitation was not found or is no longer available.'))
+    Promise.all([
+      getPublicInvitationHtml(slug),
+      getPublicInvitationMeta(slug).catch(() => null),
+    ]).then(([html, meta]) => {
+      setSrcDoc(html);
+      if (meta?.title) setTitle(meta.title);
+    }).catch(() => setError('This invitation was not found or is no longer available.'))
       .finally(() => setLoading(false));
   }, [slug]);
 
   if (loading) return (
-    <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)' }}
+    <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a)' }}
       className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="text-5xl animate-bounce mb-4">🌿</div>
-        <p className="text-green-700 font-black text-lg">Loading your invitation…</p>
-      </div>
+      <motion.div className="text-center"
+        animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2, repeat: Infinity }}>
+        <div className="text-6xl mb-4">🎉</div>
+        <p className="text-white/80 font-black text-xl">Loading your invitation…</p>
+        <div className="mt-4 flex justify-center gap-1">
+          {[0, 1, 2].map(i => (
+            <motion.div key={i} className="h-2 w-2 rounded-full bg-green-400"
+              animate={{ y: [0, -8, 0] }} transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }} />
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 
@@ -44,14 +55,63 @@ const PublicInvitePage: React.FC = () => {
     </div>
   );
 
+  const publicUrl = window.location.href;
+
   return (
-    <iframe
-      srcDoc={srcDoc}
-      className="w-full border-0"
-      style={{ height: '100vh', display: 'block' }}
-      title="Digital Invitation"
-      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-    />
+    <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)' }}
+      className="min-h-screen">
+
+      {/* Share + floating action bar */}
+      <motion.div
+        initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
+        style={{ background: 'rgba(15,23,42,0.8)', backdropFilter: 'blur(16px)' }}>
+        <span className="text-sm font-black text-white/80 truncate max-w-xs">{title}</span>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={() => setShowShare(true)}
+            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black text-white transition"
+            style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+            🔗 Share
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Invitation iframe */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}>
+        <iframe
+          srcDoc={srcDoc}
+          className="w-full border-0"
+          style={{ minHeight: '80vh', display: 'block' }}
+          title="Digital Invitation"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        />
+      </motion.div>
+
+      {/* RSVP card — below the invitation */}
+      {slug && (
+        <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#0f172a)' }} className="pb-12">
+          <div className="text-center pt-8 pb-2">
+            <p className="text-white/40 text-xs uppercase tracking-widest font-bold">Respond to this invitation</p>
+          </div>
+          <RsvpCard slug={slug} hostName={title} />
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShare && (
+        <ShareModal
+          url={publicUrl}
+          title={title}
+          onClose={() => setShowShare(false)}
+        />
+      )}
+    </div>
   );
 };
 

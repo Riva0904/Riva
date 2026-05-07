@@ -26,17 +26,22 @@ public class AddTemplateCommandHandler : IRequestHandler<AddTemplateCommand, Add
 
         var template = new Riva.Domain.Entity.Template
         {
-            Name = request.Name,
-            CategoryId = request.CategoryId,
-            IsPaid = request.IsPaid,
-            Price = request.IsPaid ? request.Price : null,
-            TemplateHtml = request.TemplateHtml,
-            TemplateCss = request.TemplateCss,
-            TemplateJs = request.TemplateJs,
-            SchemaJson = request.SchemaJson,
+            Name           = request.Name,
+            Description    = request.Description,
+            CategoryId     = request.CategoryId,
+            IsPaid         = request.IsPaid,
+            Price          = request.IsPaid ? request.Price : null,
+            TemplateHtml   = request.TemplateHtml,
+            TemplateCss    = request.TemplateCss,
+            TemplateJs     = request.TemplateJs,
+            SchemaJson     = request.SchemaJson,
             PreviewImageUrl = request.PreviewImageUrl,
-            CreatedBy = request.CreatedBy,
-            CreatedDate = DateTime.UtcNow
+            ThumbnailUrl   = request.ThumbnailUrl,
+            Status         = "Published",   // Admin-created templates are immediately live
+            Version        = 1,
+            Tags           = request.Tags,
+            CreatedBy      = request.CreatedBy,
+            CreatedDate    = DateTime.UtcNow
         };
 
         var id = await _templateRepository.AddTemplateAsync(template);

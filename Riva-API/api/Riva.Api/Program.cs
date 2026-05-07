@@ -94,6 +94,7 @@ builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
+builder.Services.AddScoped<IRsvpRepository, RsvpRepository>();
 
 // ── Template Engine services ──────────────────────────────────────────────────
 builder.Services.AddScoped<IPlaceholderService, PlaceholderService>();

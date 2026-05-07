@@ -3,9 +3,10 @@ import { login, adminRegister, logout, getStoredRole } from '../../api/auth';
 import AdminOtpModal from './components/AdminOtpModal';
 import AddTemplateForm from './components/AddTemplateForm';
 import TemplateList from './components/TemplateList';
+import CategoryManager from './components/CategoryManager';
 
 type AuthStep = 'login' | 'register' | 'otp';
-type AdminTab = 'templates' | 'add-template';
+type AdminTab = 'templates' | 'add-template' | 'categories';
 
 const lbl = "block text-sm font-black text-slate-700 mb-1.5";
 
@@ -104,13 +105,18 @@ const AdminPage: React.FC = () => {
       </header>
       <main className="mx-auto max-w-6xl p-6">
         <div className="mb-6 flex gap-2 border-b-2 border-green-100">
-          {([['templates','All Templates'],['add-template','Add Template']] as [AdminTab,string][]).map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} className={`page-tab ${tab===k ? 'active' : ''}`}>{l}</button>
+          {([
+            ['templates',    'All Templates'],
+            ['add-template', '+ Add Template'],
+            ['categories',   '🏷 Categories'],
+          ] as [AdminTab, string][]).map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} className={`page-tab ${tab === k ? 'active' : ''}`}>{l}</button>
           ))}
         </div>
         <div className="card-green rounded-2xl p-6">
           {tab === 'templates'    && <TemplateList key={refresh} />}
           {tab === 'add-template' && <AddTemplateForm onSuccess={() => { setRefresh(n=>n+1); setTab('templates'); }} />}
+          {tab === 'categories'   && <CategoryManager />}
         </div>
       </main>
     </div>

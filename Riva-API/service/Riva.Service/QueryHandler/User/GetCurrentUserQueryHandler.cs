@@ -5,33 +5,41 @@ using Riva.Service.Repository;
 
 namespace Riva.Service.QueryHandler.User;
 
-public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, UserDto>
+public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, UserProfileDto>
 {
-    private readonly IUserRepository _userRepository;
+    private readonly IUserRepository _users;
+    private readonly IInvitationRepository _invitations;
 
-    public GetCurrentUserQueryHandler(IUserRepository userRepository)
+    public GetCurrentUserQueryHandler(IUserRepository users, IInvitationRepository invitations)
     {
-        _userRepository = userRepository;
+        _users       = users;
+        _invitations = invitations;
     }
 
-    public async Task<UserDto> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
+    public async Task<UserProfileDto> Handle(GetCurrentUserQuery request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByIdAsync(request.UserId);
-        if (user == null)
-        {
-            throw new KeyNotFoundException("User not found");
-        }
+        var user = await _users.GetByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
 
-        return new UserDto
+        var (freeUsed, paidUsed) = await _users.GetTemplateUsageAsync(user.Id);
+        var myInvitations        = await _invitations.GetByUserIdAsync(user.Id);
+
+        return new UserProfileDto
         {
-            Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            Role = user.Role,
-            IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
-            UpdatedAt = user.UpdatedAt,
-            LastLoginAt = user.LastLoginAt
+            Id                      = user.Id,
+            Username                = user.Username,
+            DisplayName             = user.DisplayName,
+            Email                   = user.Email,
+            Role                    = user.Role,
+            IsActive                = user.IsActive,
+            ProfileImageUrl         = user.ProfileImageUrl,
+            CreatedAt               = user.CreatedAt,
+            UpdatedAt               = user.UpdatedAt,
+            LastLoginAt             = user.LastLoginAt,
+            FreeTemplatesUsed       = freeUsed,
+            PaidTemplatesUsed       = paidUsed,
+            TotalInvitationsCreated = myInvitations.Count,
+            SessionStatus           = "Active",
         };
     }
 }

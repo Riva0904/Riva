@@ -49,6 +49,7 @@ public class TemplateDetailDto
 public class AddTemplateRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public int CategoryId { get; set; }
     public bool IsPaid { get; set; }
     public decimal? Price { get; set; }
@@ -57,6 +58,14 @@ public class AddTemplateRequest
     public string? TemplateJs { get; set; }
     public string SchemaJson { get; set; } = "[]";
     public string? PreviewImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
+    public string? Tags { get; set; }
+}
+
+public class UpdateStatusRequest
+{
+    /// <summary>Published | Draft | Archived</summary>
+    public string Status { get; set; } = "Published";
 }
 
 /// <summary>

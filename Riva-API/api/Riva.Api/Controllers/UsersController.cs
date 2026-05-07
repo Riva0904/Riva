@@ -5,96 +5,147 @@ using Microsoft.AspNetCore.Mvc;
 using Riva.Dto.Admin;
 using Riva.Dto.User;
 using Riva.Service.Command.User;
+using Riva.Service.Interfaces;
 using Riva.Service.Query.Admin;
 using Riva.Service.Query.User;
 
 namespace Riva.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/users")]
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IMediaUploadService _upload;
 
-    public UsersController(IMediator mediator)
+    public UsersController(IMediator mediator, IMediaUploadService upload)
     {
         _mediator = mediator;
+        _upload   = upload;
     }
 
+    // ── Current user ──────────────────────────────────────────────────────────
+
+    /// <summary>GET /api/users/profile — full profile with usage stats</summary>
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+    {
+        var result = await _mediator.Send(new GetCurrentUserQuery { UserId = GetUserId() });
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/users/me — legacy alias</summary>
     [HttpPost("me")]
-    [Authorize]
     public async Task<IActionResult> GetCurrentUser()
     {
-        var userId = GetCurrentUserId();
-        var query = new GetCurrentUserQuery { UserId = userId };
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        var result = await _mediator.Send(new GetCurrentUserQuery { UserId = GetUserId() });
+        return Ok(result);
     }
 
+    /// <summary>GET /api/users/session — legacy alias</summary>
     [HttpGet("session")]
-    [Authorize]
     public async Task<IActionResult> GetSession()
     {
-        var userId = GetCurrentUserId();
-        var query = new GetUserSessionQuery { UserId = userId };
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        var result = await _mediator.Send(new GetUserSessionQuery { UserId = GetUserId() });
+        return Ok(result);
     }
 
+    // ── Profile management ────────────────────────────────────────────────────
+
+    [HttpPatch("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Username))
+            return BadRequest(new { Message = "Username is required." });
+        if (string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { Message = "Email is required." });
+
+        await _mediator.Send(new UpdateProfileCommand
+        {
+            UserId      = GetUserId(),
+            Username    = req.Username,
+            Email       = req.Email,
+            DisplayName = req.DisplayName,
+        });
+        return Ok(new { Message = "Profile updated successfully." });
+    }
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        if (req.NewPassword != req.ConfirmPassword)
+            return BadRequest(new { Message = "New password and confirm password do not match." });
+
+        await _mediator.Send(new ChangePasswordCommand
+        {
+            UserId          = GetUserId(),
+            CurrentPassword = req.CurrentPassword,
+            NewPassword     = req.NewPassword,
+        });
+        return Ok(new { Message = "Password changed successfully." });
+    }
+
+    [HttpPost("profile-image")]
+    [RequestSizeLimit(10_485_760)]
+    public async Task<IActionResult> UploadProfileImage(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { Message = "No file provided." });
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowed.Contains(file.ContentType))
+            return BadRequest(new { Message = "Only JPG, PNG, WebP, or GIF allowed." });
+
+        await using var stream = file.OpenReadStream();
+        var (imageUrl, _) = await _upload.UploadAsync(stream, file.FileName, file.ContentType, "profiles");
+
+        await _mediator.Send(new UpdateProfileImageCommand
+        {
+            UserId   = GetUserId(),
+            ImageUrl = imageUrl,
+        });
+        return Ok(new { ImageUrl = imageUrl, Message = "Profile image updated." });
+    }
+
+    // ── Admin endpoints ───────────────────────────────────────────────────────
+
     [HttpPost("getbyid")]
-    [Authorize]
     public async Task<IActionResult> GetById([FromBody] GetUserByIdRequest request)
     {
-        var currentUserId = GetCurrentUserId();
-        var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
-
-        if (currentUserRole != "Admin" && currentUserId != request.Id)
-        {
-            return Forbid();
-        }
-
-        var query = new GetUserByIdQuery { UserId = request.Id };
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        var uid  = GetUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (role != "Admin" && uid != request.Id) return Forbid();
+        var result = await _mediator.Send(new GetUserByIdQuery { UserId = request.Id });
+        return Ok(result);
     }
 
     [HttpPost("getall")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllUsers()
     {
-        var query = new GetAllUsersQuery();
-        var response = await _mediator.Send(query);
-        return Ok(response);
+        return Ok(await _mediator.Send(new GetAllUsersQuery()));
     }
 
     [HttpPost("search")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SearchUsers([FromBody] SearchUsersRequest request)
     {
-        var query = new SearchUsersQuery
+        return Ok(await _mediator.Send(new SearchUsersQuery
         {
             SearchTerm = request.SearchTerm,
-            Role = request.Role,
-            IsActive = request.IsActive,
+            Role       = request.Role,
+            IsActive   = request.IsActive,
             PageNumber = request.PageNumber,
-            PageSize = request.PageSize
-        };
-
-        var response = await _mediator.Send(query);
-        return Ok(response);
+            PageSize   = request.PageSize,
+        }));
     }
 
     [HttpPost("updatestatus")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateStatus([FromBody] UpdateUserStatusRequest request)
     {
-        var command = new UpdateUserStatusCommand
-        {
-            UserId = request.Id,
-            IsActive = request.IsActive
-        };
-
-        await _mediator.Send(command);
+        await _mediator.Send(new UpdateUserStatusCommand { UserId = request.Id, IsActive = request.IsActive });
         return NoContent();
     }
 
@@ -102,13 +153,7 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateRole([FromBody] UpdateUserRoleRequest request)
     {
-        var command = new UpdateUserRoleCommand
-        {
-            UserId = request.Id,
-            NewRole = request.NewRole
-        };
-
-        await _mediator.Send(command);
+        await _mediator.Send(new UpdateUserRoleCommand { UserId = request.Id, NewRole = request.NewRole });
         return NoContent();
     }
 
@@ -116,14 +161,13 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteUser([FromBody] DeleteUserRequest request)
     {
-        var command = new DeleteUserCommand { UserId = request.Id };
-        await _mediator.Send(command);
+        await _mediator.Send(new DeleteUserCommand { UserId = request.Id });
         return NoContent();
     }
 
-    private int GetCurrentUserId()
+    private int GetUserId()
     {
-        var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claimValue, out var userId) ? userId : 0;
+        var v = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(v, out var id) ? id : 0;
     }
 }

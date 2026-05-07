@@ -10,31 +10,34 @@ import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import CreateInvitationPage from './pages/Invitation/CreateInvitationPage';
 import MyInvitationsPage from './pages/Invitation/MyInvitationsPage';
 import PublicInvitePage from './pages/Public/PublicInvitePage';
+import ProfilePage from './pages/User/Settings/ProfilePage';
+import SettingsPage from './pages/User/Settings/SettingsPage';
 
 function App() {
   return (
     <Router>
       <Routes>
         {/* ── Public ── */}
-        <Route path="/"                  element={<AppLayout><HomePage /></AppLayout>} />
-        <Route path="/invite/:slug"      element={<PublicInvitePage />} />
+        <Route path="/"                 element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/invite/:slug"     element={<PublicInvitePage />} />
 
         {/* ── Auth ── */}
-        <Route path="/register"          element={<RegisterPage />} />
-        <Route path="/login"             element={<LoginPage />} />
-        <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
+        <Route path="/register"         element={<RegisterPage />} />
+        <Route path="/login"            element={<LoginPage />} />
+        <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
 
         {/* ── User ── */}
-        <Route path="/dashboard"         element={<UserDashboard />} />
-        <Route path="/my-invitations"    element={<MyInvitationsPage />} />
+        <Route path="/dashboard"        element={<UserDashboard />} />
+        <Route path="/my-invitations"   element={<MyInvitationsPage />} />
+        <Route path="/profile"          element={<ProfilePage />} />
+        <Route path="/settings"         element={<SettingsPage />} />
 
-        {/* Create invitation from a template */}
-        <Route path="/invitation/new/:templateId"   element={<CreateInvitationPage />} />
-        {/* Edit existing invitation */}
+        {/* Invitation editor */}
+        <Route path="/invitation/new/:templateId"    element={<CreateInvitationPage />} />
         <Route path="/invitation/:invitationId/edit" element={<CreateInvitationPage />} />
 
         {/* ── Admin ── */}
-        <Route path="/admin"             element={<AdminPage />} />
+        <Route path="/admin"            element={<AdminPage />} />
       </Routes>
     </Router>
   );

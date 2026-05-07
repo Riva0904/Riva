@@ -1,51 +1,124 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 const features = [
-  { id: 1, icon: '🎉', title: 'Animated RSVP Cards', desc: 'Invite guests with interactive RSVP pages that look great on mobile and desktop.' },
-  { id: 2, icon: '💌', title: 'Custom Messaging',    desc: 'Personalise every invitation with messages, images, and photo galleries.' },
-  { id: 3, icon: '✨', title: 'Modern Themes',       desc: 'Choose from elegant templates with smooth glow and motion effects.' },
+  {
+    icon: '🎉',
+    title: 'Animated RSVP Cards',
+    description: 'Guests respond with a single tap — Accept, Decline, or Maybe. Beautiful animations, real-time tracking.',
+    color: 'from-green-400 to-emerald-600',
+    stat: '127+ avg RSVPs',
+  },
+  {
+    icon: '💌',
+    title: 'Personalized Messaging',
+    description: 'Add custom messages, guest names, and auto-greetings. Share via WhatsApp, Email, or a single link.',
+    color: 'from-blue-400 to-indigo-600',
+    stat: 'WhatsApp · Email · QR',
+  },
+  {
+    icon: '✨',
+    title: 'Premium Animated Themes',
+    description: 'Wedding, Birthday, Corporate, Baby Shower — each theme has animations, countdown timers, and galleries.',
+    color: 'from-purple-400 to-pink-600',
+    stat: '50+ premium themes',
+  },
+  {
+    icon: '🌍',
+    title: 'Global Reach',
+    description: 'Share worldwide with multi-timezone support. Your invitation mini-website loads instantly on any device.',
+    color: 'from-amber-400 to-orange-600',
+    stat: '190+ countries',
+  },
+  {
+    icon: '⚡',
+    title: 'Instant Delivery',
+    description: 'One-click sharing, QR codes, and direct links. Recipients see your invitation in under 2 seconds.',
+    color: 'from-cyan-400 to-blue-600',
+    stat: '< 2s load time',
+  },
+  {
+    icon: '🔒',
+    title: 'Secure & Private',
+    description: 'Tokenized URLs, optional password protection, and private guest access — your invitation stays safe.',
+    color: 'from-slate-500 to-slate-700',
+    stat: 'End-to-end secure',
+  },
 ];
 
-const extras = [['🌍','Global Reach'],['⚡','Instant Delivery'],['🔒','Secure & Private'],['📱','Mobile First']];
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1 } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } },
+};
 
 const Features: React.FC = () => (
-  <section id="features" className="bg-dark-green py-24 px-4 sm:px-6 lg:px-8">
+  <section id="features" className="py-24 px-4 sm:px-6 lg:px-8"
+    style={{ background: 'linear-gradient(135deg,#052e16 0%,#14532d 50%,#166534 100%)' }}>
     <div className="mx-auto max-w-7xl">
 
-      <div className="text-center mb-14">
-        <span className="inline-block rounded-full px-4 py-1 text-sm font-black mb-4 border"
-          style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderColor: 'rgba(74,222,128,0.3)' }}>
-          Feature Highlights
+      <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-16">
+        <span className="inline-block rounded-full px-4 py-1 text-sm font-black mb-4"
+          style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' }}>
+          Why Riva?
         </span>
-        <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-          Everything you need for a<br />
+        <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+          Everything you need for a{' '}
           <span style={{ color: '#4ade80' }}>perfect invite</span>
         </h2>
-      </div>
+        <p className="mt-4 text-lg text-green-200 max-w-2xl mx-auto">
+          From animated themes to real-time RSVP tracking — we've thought of everything.
+        </p>
+      </motion.div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {features.map(f => (
-          <div key={f.id} className="feature-card relative overflow-hidden rounded-3xl p-8 text-center shadow-xl transition hover:-translate-y-2 duration-300"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(74,222,128,0.2)' }}>
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl"
-              style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)' }}>
+      <motion.div
+        variants={containerVariants} initial="hidden"
+        whileInView="visible" viewport={{ once: true, margin: '-100px' }}
+        className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {features.map((f) => (
+          <motion.div key={f.title} variants={cardVariants}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
+            className="feature-card group relative overflow-hidden rounded-3xl p-6 cursor-default"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(74,222,128,0.15)',
+              backdropFilter: 'blur(12px)',
+            }}>
+
+            {/* Gradient accent */}
+            <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-br ${f.color} opacity-20 blur-xl group-hover:opacity-40 transition-opacity duration-500`} />
+
+            <div className={`mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${f.color} text-2xl shadow-lg`}>
               {f.icon}
             </div>
-            <h3 className="text-xl font-black text-white">{f.title}</h3>
-            <p className="mt-4 text-sm leading-7" style={{ color: '#86efac' }}>{f.desc}</p>
-          </div>
-        ))}
-      </div>
 
-      <div className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {extras.map(([icon, label]) => (
-          <div key={label} className="flex flex-col items-center gap-2 rounded-2xl p-4 text-center"
-            style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <span className="text-2xl">{icon}</span>
-            <span className="text-sm font-black" style={{ color: '#a7f3d0' }}>{label}</span>
-          </div>
+            <h3 className="text-lg font-black text-white mb-2">{f.title}</h3>
+            <p className="text-sm leading-6 text-green-200/80">{f.description}</p>
+
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1"
+              style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.2)' }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+              <span className="text-xs font-black text-green-300">{f.stat}</span>
+            </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
+
+      {/* Bottom CTA */}
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.3 }}
+        className="mt-16 text-center">
+        <a href="/register"
+          className="inline-flex items-center gap-2 rounded-full px-10 py-4 text-sm font-black text-slate-900 transition hover:scale-105 active:scale-95"
+          style={{ background: 'linear-gradient(135deg,#4ade80,#22c55e)', boxShadow: '0 12px 32px rgba(74,222,128,0.4)' }}>
+          Get Started Free — No Credit Card 🎉
+        </a>
+      </motion.div>
     </div>
   </section>
 );

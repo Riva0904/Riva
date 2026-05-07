@@ -7,6 +7,7 @@ import {
   type SchemaField, type InvitationMedia,
 } from '../../api/invitation';
 import DynamicFormBuilder from '../../components/DynamicFormBuilder';
+import ShareModal from '../../components/ShareModal';
 
 interface TemplateDetail {
   templateId: number;
@@ -56,6 +57,7 @@ const CreateInvitationPage: React.FC = () => {
   const [successMsg,   setSuccessMsg]   = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [activeTab,    setActiveTab]    = useState<'form' | 'preview'>('form');
+  const [showShare,    setShowShare]    = useState(false);
   const [currentInvId, setCurrentInvId] = useState<number | null>(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
@@ -269,14 +271,27 @@ const CreateInvitationPage: React.FC = () => {
 
       {/* Published banner */}
       {publishedUrl && (
-        <div className="bg-green-600 text-white px-4 py-2.5 text-center text-sm font-bold flex-shrink-0">
-          🎉 Published!{' '}
+        <div className="bg-green-600 text-white px-4 py-2.5 text-sm font-bold flex-shrink-0 flex items-center justify-center gap-3">
+          <span>🎉 Published!</span>
           <a href={publishedUrl} target="_blank" rel="noreferrer"
-            className="underline hover:no-underline mx-1">
+            className="underline hover:no-underline truncate max-w-xs hidden sm:block">
             {window.location.origin + publishedUrl}
           </a>
-          <button onClick={copyLink} className="underline ml-2">Copy</button>
+          <button onClick={copyLink} className="underline">Copy</button>
+          <button
+            onClick={() => setShowShare(true)}
+            className="rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30 transition">
+            🔗 Share
+          </button>
         </div>
+      )}
+
+      {showShare && publishedUrl && (
+        <ShareModal
+          url={window.location.origin + publishedUrl}
+          title={title}
+          onClose={() => setShowShare(false)}
+        />
       )}
 
       {/* Error */}

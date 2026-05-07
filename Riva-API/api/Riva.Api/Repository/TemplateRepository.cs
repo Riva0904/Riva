@@ -92,6 +92,46 @@ public class TemplateRepository : ITemplateRepository
         return list;
     }
 
+    public async Task<IEnumerable<Template>> GetAllAdminAsync(int? categoryId, bool? isPaid)
+    {
+        var sql = @"
+            SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
+                   t.IsPaid, t.Price, t.SchemaJson,
+                   t.PreviewImageUrl, t.ThumbnailUrl,
+                   t.Status, t.Version, t.CreatedBy, t.CreatedDate,
+                   c.Name AS CategoryName
+            FROM Templates t
+            LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
+            WHERE 1=1";
+
+        if (categoryId.HasValue) sql += " AND t.CategoryId = @CategoryId";
+        if (isPaid.HasValue)     sql += " AND t.IsPaid = @IsPaid";
+        sql += " ORDER BY t.CreatedDate DESC";
+
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        if (categoryId.HasValue) cmd.Parameters.AddWithValue("@CategoryId", categoryId.Value);
+        if (isPaid.HasValue)     cmd.Parameters.AddWithValue("@IsPaid",     isPaid.Value);
+
+        using var r = await cmd.ExecuteReaderAsync();
+        var list = new List<Template>();
+        while (await r.ReadAsync()) list.Add(MapSummary(r));
+        return list;
+    }
+
+    public async Task UpdateStatusAsync(int templateId, string status)
+    {
+        const string sql = @"
+            UPDATE Templates SET Status = @Status, UpdatedDate = @UpdatedDate
+            WHERE TemplateId = @TemplateId";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@TemplateId",  templateId);
+        cmd.Parameters.AddWithValue("@Status",      status);
+        cmd.Parameters.AddWithValue("@UpdatedDate", DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private static Template Map(SqlDataReader r) => new()
