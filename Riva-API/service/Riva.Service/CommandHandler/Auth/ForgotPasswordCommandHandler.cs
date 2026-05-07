@@ -6,13 +6,13 @@ using Riva.Service.Repository;
 
 namespace Riva.Service.CommandHandler.Auth;
 
-public class ResendOtpCommandHandler : IRequestHandler<ResendOtpCommand, Unit>
+public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, Unit>
 {
     private readonly IUserRepository _userRepository;
     private readonly IOtpRepository _otpRepository;
     private readonly IEmailService _emailService;
 
-    public ResendOtpCommandHandler(
+    public ForgotPasswordCommandHandler(
         IUserRepository userRepository,
         IOtpRepository otpRepository,
         IEmailService emailService)
@@ -22,29 +22,26 @@ public class ResendOtpCommandHandler : IRequestHandler<ResendOtpCommand, Unit>
         _emailService = emailService;
     }
 
-    public async Task<Unit> Handle(ResendOtpCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await _userRepository.GetByEmailAsync(request.Email)
-            ?? throw new InvalidOperationException("No account found with this email.");
+            ?? throw new InvalidOperationException("No account found with this email address.");
 
-        if (user.IsVerified)
-            throw new InvalidOperationException("Account is already verified.");
-
-        await _otpRepository.ExpireAllPendingForEmailAsync(request.Email);
+        // Expire any existing pending password-reset OTPs for this email
+        await _otpRepository.ExpireAllPendingForEmailAsync(request.Email, "PasswordReset");
 
         var otpCode = Random.Shared.Next(100000, 999999).ToString();
-        var otp = new EmailOtp
+        await _otpRepository.SaveOtpAsync(new EmailOtp
         {
             Email = request.Email,
             OtpCode = otpCode,
             ExpiryTime = DateTime.UtcNow.AddMinutes(10),
             Status = "Pending",
+            Type = "PasswordReset",
             CreatedAt = DateTime.UtcNow
-        };
+        });
 
-        otp.Type = "Registration";
-        await _otpRepository.SaveOtpAsync(otp);
-        await _emailService.SendOtpEmailAsync(request.Email, user.Username, otpCode);
+        await _emailService.SendPasswordResetEmailAsync(request.Email, user.Username, otpCode);
 
         return Unit.Value;
     }

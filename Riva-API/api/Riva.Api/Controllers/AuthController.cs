@@ -61,6 +61,27 @@ public class AuthController : ControllerBase
         return Ok(new { Message = "A new OTP has been sent to your email." });
     }
 
+    // ── Forgot / Reset Password ───────────────────────────────────────
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        await _mediator.Send(new ForgotPasswordCommand { Email = request.Email });
+        return Ok(new { Message = "Password reset OTP sent to your email." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        await _mediator.Send(new ResetPasswordCommand
+        {
+            Email = request.Email,
+            OtpCode = request.OtpCode,
+            NewPassword = request.NewPassword
+        });
+        return Ok(new { Message = "Password reset successfully. You can now log in." });
+    }
+
     // ── Admin Auth ────────────────────────────────────────────────────
 
     [HttpPost("admin/register")]

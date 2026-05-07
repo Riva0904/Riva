@@ -41,6 +41,14 @@ export async function adminResendOtp(email: string): Promise<{ message: string }
   return apiFetch('auth/admin/resend-otp', { method: 'POST', body: JSON.stringify({ email }) });
 }
 
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return apiFetch('auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+}
+
+export async function resetPassword(email: string, otpCode: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch('auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otpCode, newPassword }) });
+}
+
 export async function getCurrentUser(): Promise<UserDto> {
   return apiFetch<UserDto>('users/me', { method: 'POST' });
 }

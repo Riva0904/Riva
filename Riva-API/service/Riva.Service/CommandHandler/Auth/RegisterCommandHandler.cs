@@ -52,6 +52,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
             OtpCode = otpCode,
             ExpiryTime = DateTime.UtcNow.AddMinutes(10),
             Status = "Pending",
+            Type = "Registration",
             CreatedAt = DateTime.UtcNow
         });
 

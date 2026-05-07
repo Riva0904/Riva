@@ -60,3 +60,15 @@ public class ResendOtpResponse
     public string Message { get; set; } = string.Empty;
     public int OtpExpiryMinutes { get; set; } = 10;
 }
+
+public class ForgotPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string OtpCode { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}

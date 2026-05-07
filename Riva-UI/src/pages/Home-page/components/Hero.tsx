@@ -1,42 +1,58 @@
-import React from 'react'
+import React from 'react';
 
-const Hero: React.FC = () => {
-  return (
-    <section className="relative overflow-hidden bg-slate-50 px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-2 lg:gap-16 lg:py-20">
-        <div className="space-y-8 pt-6 lg:pt-12">
-          <span className="inline-flex rounded-full bg-purple-100 px-4 py-1 text-sm font-semibold text-purple-700 ring-1 ring-purple-200">
-            Digital Invitation Landing Page
-          </span>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-            Create <span className="gradient-text">Beautiful Invitations</span>
-          </h1>
-          <p className="max-w-2xl text-lg leading-8 text-slate-600">
-            Design a modern invitation experience for events and celebrations with premium templates, animated details, and fully responsive pages.
-          </p>
+const Hero: React.FC = () => (
+  <section className="bg-page relative overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
+    <div className="blob blob-green-1" />
+    <div className="blob blob-green-2" />
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <a href="#templates" className="inline-flex items-center justify-center rounded-full bg-purple-600 px-8 py-4 text-sm font-semibold text-white shadow-xl shadow-purple-500/20 transition hover:-translate-y-0.5 hover:bg-purple-700">
-              Browse templates
-            </a>
-            <a href="#pricing" className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-semibold text-slate-900 transition hover:border-slate-300">
-              View pricing
-            </a>
-          </div>
+    <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-2 lg:gap-16 lg:py-20">
+
+      <div className="space-y-8 pt-6 lg:pt-12">
+        <span className="section-label">🌿 Digital Invitation Platform</span>
+
+        <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl leading-tight">
+          Create <span className="gradient-text">Beautiful</span><br />Invitations
+        </h1>
+
+        <p className="max-w-lg text-lg leading-8 text-slate-600">
+          Design stunning invitation experiences for events and celebrations with premium templates, animated details, and fully responsive pages.
+        </p>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <a href="#templates" className="btn-green inline-flex w-auto items-center justify-center gap-2 rounded-full px-8">
+            Browse Templates →
+          </a>
+          <a href="#pricing" className="btn-green-outline w-auto rounded-full px-8">
+            View Pricing
+          </a>
         </div>
 
-        <div className="relative mx-auto w-full max-w-2xl">
-          <div className="absolute inset-x-0 top-10 h-80 rounded-[2rem] bg-purple-500/10 blur-3xl"></div>
-          <img
-            src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=900&q=80&fm=jpg"
-            alt="Beautiful Invitation"
-            loading="lazy"
-            className="relative z-10 mx-auto w-full rounded-[2rem] border border-white/90 bg-white/70 object-cover shadow-2xl shadow-slate-900/10"
-          />
+        <div className="flex gap-8 pt-2">
+          {[['500+', 'Templates'], ['10k+', 'Events'], ['99%', 'Satisfaction']].map(([num, label]) => (
+            <div key={label}>
+              <p className="text-2xl font-black text-green">{num}</p>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
-    </section>
-  )
-}
 
-export default Hero
+      <div className="relative mx-auto w-full max-w-2xl">
+        <div className="blob blob-green-1 inset-x-0 top-10 h-80 rounded-3xl" />
+        <img
+          src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=900&q=80&fm=jpg"
+          alt="Beautiful Invitation"
+          loading="lazy"
+          className="relative z-10 mx-auto w-full rounded-3xl object-cover shadow-2xl"
+          style={{ border: '3px solid rgba(255,255,255,0.9)' }}
+        />
+        <div className="card-green absolute -bottom-4 -left-4 z-20 rounded-2xl px-4 py-3">
+          <p className="text-xs font-bold text-slate-500">Guests invited</p>
+          <p className="text-xl font-black text-green">2,847 ✓</p>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+export default Hero;

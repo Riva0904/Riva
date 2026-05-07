@@ -7,8 +7,7 @@ import TemplateList from './components/TemplateList';
 type AuthStep = 'login' | 'register' | 'otp';
 type AdminTab = 'templates' | 'add-template';
 
-const inp = "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-purple-500";
-const lbl = "block text-sm font-medium text-slate-700 mb-1";
+const lbl = "block text-sm font-black text-slate-700 mb-1.5";
 
 const AdminPage: React.FC = () => {
   const [loggedIn, setLoggedIn] = useState(() => getStoredRole() === 'Admin');
@@ -50,69 +49,67 @@ const AdminPage: React.FC = () => {
   );
 
   if (!loggedIn) return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 to-purple-50 p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
-        <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-600 text-2xl text-white">R</div>
-          <h1 className="text-2xl font-bold text-slate-900">Admin Portal</h1>
-          <p className="text-sm text-slate-500 mt-1">Riva Invitation Platform</p>
+    <div className="bg-dark-green flex min-h-screen items-center justify-center p-4">
+      <div className="card-green w-full max-w-md">
+        <div className="bg-green-primary px-8 pt-8 pb-6 text-center">
+          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-2xl font-black text-white shadow-lg">⚡</div>
+          <h1 className="text-2xl font-black text-white">Admin Portal</h1>
+          <p className="text-sm text-green-100 mt-1">Riva Invitation Platform</p>
         </div>
-        <div className="mb-6 flex rounded-xl border border-slate-200 p-1">
-          {(['login','register'] as const).map(s => (
-            <button key={s} onClick={() => { setStep(s); setErr(null); setInfo(null); }}
-              className={"flex-1 rounded-lg py-2 text-sm font-semibold transition " + (step===s ? 'bg-purple-600 text-white' : 'text-slate-600')}>
-              {s === 'login' ? 'Login' : 'Register'}
-            </button>
-          ))}
+        <div className="p-8">
+          <div className="tab-switcher">
+            {(['login','register'] as const).map(s => (
+              <button key={s} onClick={() => { setStep(s); setErr(null); setInfo(null); }}
+                className={`tab-btn ${step===s ? 'active' : ''}`}>
+                {s === 'login' ? '🔐 Login' : '📝 Register'}
+              </button>
+            ))}
+          </div>
+          {err  && <div className="alert-error" ><span>⚠️</span><span>{err}</span></div>}
+          {info && <div className="alert-info"  ><span>ℹ️</span><span>{info}</span></div>}
+          {step === 'login' ? (
+            <form onSubmit={doLogin} className="space-y-4">
+              <div><label className={lbl}>Email or Username</label><input className="input-green" value={eu} onChange={e=>setEu(e.target.value)} placeholder="Enter email or username" required /></div>
+              <div><label className={lbl}>Password</label><input type="password" className="input-green" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Enter password" required /></div>
+              <button type="submit" disabled={busy} className="btn-green mt-2">
+                {busy ? '⏳ Logging in...' : '🔐 Login to Admin'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={doReg} className="space-y-4">
+              <div><label className={lbl}>Username</label><input className="input-green" value={un} onChange={e=>setUn(e.target.value)} placeholder="Admin username" required /></div>
+              <div><label className={lbl}>Email</label><input type="email" className="input-green" value={eu} onChange={e=>setEu(e.target.value)} placeholder="admin@example.com" required /></div>
+              <div><label className={lbl}>Password</label><input type="password" className="input-green" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Min 6 characters" required /></div>
+              <div><label className={lbl}>Admin Secret Key</label><input type="password" className="input-green" value={sk} onChange={e=>setSk(e.target.value)} placeholder="Ask your system admin" required /></div>
+              <button type="submit" disabled={busy} className="btn-green mt-2">
+                {busy ? '⏳ Registering...' : '📝 Register & Send OTP'}
+              </button>
+            </form>
+          )}
         </div>
-        {err && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</div>}
-        {info && <div className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">{info}</div>}
-        {step === 'login' ? (
-          <form onSubmit={doLogin} className="space-y-4">
-            <div><label className={lbl}>Email or Username</label><input className={inp} value={eu} onChange={e=>setEu(e.target.value)} required /></div>
-            <div><label className={lbl}>Password</label><input type="password" className={inp} value={pw} onChange={e=>setPw(e.target.value)} required /></div>
-            <button type="submit" disabled={busy} className="w-full rounded-full bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700 disabled:opacity-50">
-              {busy ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={doReg} className="space-y-4">
-            <div><label className={lbl}>Username</label><input className={inp} value={un} onChange={e=>setUn(e.target.value)} required /></div>
-            <div><label className={lbl}>Email</label><input type="email" className={inp} value={eu} onChange={e=>setEu(e.target.value)} required /></div>
-            <div><label className={lbl}>Password</label><input type="password" className={inp} value={pw} onChange={e=>setPw(e.target.value)} required /></div>
-            <div><label className={lbl}>Admin Secret Key</label><input type="password" className={inp} value={sk} onChange={e=>setSk(e.target.value)} placeholder="Ask your system admin" required /></div>
-            <button type="submit" disabled={busy} className="w-full rounded-full bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700 disabled:opacity-50">
-              {busy ? 'Registering...' : 'Register & Send OTP'}
-            </button>
-          </form>
-        )}
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
+    <div className="bg-light-green min-h-screen">
+      <header className="dashboard-header">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-600 text-white font-bold">R</div>
-            <span className="font-bold text-slate-900">Riva Admin</span>
+            <div className="logo-icon text-base">R</div>
+            <span className="font-black text-slate-900">Riva <span className="text-green">Admin</span></span>
           </div>
-          <button onClick={() => { logout(); setLoggedIn(false); }}
-            className="rounded-full border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:bg-slate-50">Logout</button>
+          <button onClick={() => { logout(); setLoggedIn(false); }} className="navbar-btn-outline">Logout</button>
         </div>
       </header>
       <main className="mx-auto max-w-6xl p-6">
-        <div className="mb-6 flex gap-2 border-b border-slate-200">
+        <div className="mb-6 flex gap-2 border-b-2 border-green-100">
           {([['templates','All Templates'],['add-template','Add Template']] as [AdminTab,string][]).map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={"px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition " + (tab===k ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500')}>
-              {l}
-            </button>
+            <button key={k} onClick={() => setTab(k)} className={`page-tab ${tab===k ? 'active' : ''}`}>{l}</button>
           ))}
         </div>
-        <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-          {tab === 'templates' && <TemplateList key={refresh} />}
+        <div className="card-green rounded-2xl p-6">
+          {tab === 'templates'    && <TemplateList key={refresh} />}
           {tab === 'add-template' && <AddTemplateForm onSuccess={() => { setRefresh(n=>n+1); setTab('templates'); }} />}
         </div>
       </main>

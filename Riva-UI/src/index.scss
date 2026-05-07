@@ -1,37 +1,412 @@
-/* Global styles */
-
-:root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* =========================================================
+   Global reset
+   ========================================================= */
+html { scroll-behavior: smooth; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  -webkit-text-size-adjust: 100%;
 }
 
-#root {
-  min-height: 100vh;
+#root { min-height: 100vh; }
+img { max-width: 100%; height: auto; display: block; }
+
+
+/* =========================================================
+   Riva Green Theme — shared utility classes
+   Replace all inline style={{ }} with these names
+   ========================================================= */
+
+/* ── Backgrounds ─────────────────────────────────────────── */
+.bg-page          { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #d1fae5 100%); }
+.bg-dark-green    { background: linear-gradient(135deg, #052e16 0%, #14532d 50%, #166534 100%); }
+.bg-light-green   { background: #f0fdf4; }
+.bg-green-primary { background: linear-gradient(135deg, #16a34a, #059669); }
+.bg-green-soft    { background: linear-gradient(135deg, #dcfce7, #bbf7d0); }
+.bg-pricing-section { background: linear-gradient(180deg, #ffffff, #f0fdf4); }
+.bg-templates-section { background: linear-gradient(180deg, #f0fdf4, #ffffff); }
+
+/* ── Card ────────────────────────────────────────────────── */
+.card-green {
+  background: white;
+  border: 2px solid #dcfce7;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(22, 163, 74, 0.08);
 }
 
-/* Image loading fallback */
-img {
-  max-width: 100%;
-  height: auto;
+/* ── Accent bar (top of cards) ───────────────────────────── */
+.accent-bar {
+  background: linear-gradient(90deg, #16a34a, #059669);
+  height: 4px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* ── Logo icon ───────────────────────────────────────────── */
+.logo-icon {
+  background: linear-gradient(135deg, #16a34a, #059669);
+  border-radius: 1rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 900;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.35);
+  flex-shrink: 0;
+}
+.logo-icon-lg {
+  @extend .logo-icon;
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.5rem;
+  border-radius: 1.25rem;
+}
+
+/* ── OTP step icon ───────────────────────────────────────── */
+.otp-icon {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border-radius: 1rem;
+  width: 4rem;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.875rem;
+  margin: 0 auto 1rem;
+}
+
+/* ── Primary button ──────────────────────────────────────── */
+.btn-green {
   display: block;
+  width: 100%;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  color: white;
+  background: linear-gradient(135deg, #16a34a, #059669);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.3);
+
+  &:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  &:active:not(:disabled) { transform: translateY(0); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; background: #86efac; box-shadow: none; }
+}
+
+/* ── Outline buttons ─────────────────────────────────────── */
+.btn-green-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  color: #64748b;
+  background: white;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover { border-color: #86efac; background: #f0fdf4; color: #15803d; }
+}
+
+.btn-green-soft {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover { border-color: #86efac; background: #dcfce7; }
+}
+
+/* ── Inputs ──────────────────────────────────────────────── */
+.input-green {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+  color: #0f172a;
+
+  &::placeholder { color: #94a3b8; }
+  &:focus {
+    border-color: #16a34a;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+  }
+}
+
+.input-otp {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.875rem;
+  font-weight: 900;
+  letter-spacing: 0.6em;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: #16a34a;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+  }
+}
+
+/* ── Alerts ──────────────────────────────────────────────── */
+.alert-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.alert-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.alert-info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Step indicator dots ─────────────────────────────────── */
+.step-dot {
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+
+  &.active {
+    background: linear-gradient(135deg, #16a34a, #059669);
+    color: white;
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+  }
+  &.done {
+    background: #16a34a;
+    color: white;
+  }
+  &.pending {
+    background: #f1f5f9;
+    color: #94a3b8;
+  }
+}
+
+.step-line {
+  height: 2px;
+  width: 3rem;
+  border-radius: 9999px;
+  transition: background 0.3s ease;
+
+  &.done    { background: #16a34a; }
+  &.pending { background: #e2e8f0; }
+}
+
+/* ── Tab switcher ────────────────────────────────────────── */
+.tab-switcher {
+  display: flex;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  flex: 1;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0;
+  font-size: 0.875rem;
+  font-weight: 900;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  color: #64748b;
+
+  &.active {
+    background: linear-gradient(135deg, #16a34a, #059669);
+    color: white;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+  }
+}
+
+/* ── Page tabs (underline style) ─────────────────────────── */
+.page-tab {
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #94a3b8;
+
+  &.active { border-bottom-color: #16a34a; color: #16a34a; }
+  &:hover:not(.active) { color: #15803d; }
+}
+
+/* ── Navbar ──────────────────────────────────────────────── */
+.navbar-green {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid #dcfce7;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 8px rgba(22, 163, 74, 0.06);
+}
+
+.navbar-link {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #475569;
+  transition: color 0.2s;
+  text-decoration: none;
+
+  &:hover { color: #15803d; }
+}
+
+.navbar-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  color: #334155;
+  text-decoration: none;
+  transition: all 0.2s ease;
+
+  &:hover { border-color: #86efac; background: #f0fdf4; color: #15803d; }
+}
+
+.navbar-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #16a34a, #059669);
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  color: white;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  transition: all 0.2s ease;
+
+  &:hover { opacity: 0.9; }
+}
+
+/* ── Dashboard header ────────────────────────────────────── */
+.dashboard-header {
+  background: white;
+  border-bottom: 2px solid #dcfce7;
+  padding: 1rem 1.5rem;
+}
+
+/* ── Section label (small caps above headings) ───────────── */
+.section-label {
+  display: inline-block;
+  background: #dcfce7;
+  color: #15803d;
+  border-radius: 9999px;
+  padding: 0.25rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+}
+
+/* ── Text colour helpers ─────────────────────────────────── */
+.text-green       { color: #16a34a; }
+.text-green-dark  { color: #15803d; }
+
+/* ── Hero decorative blobs ───────────────────────────────── */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-green-1 {
+  background: rgba(74, 222, 128, 0.18);
+  filter: blur(80px);
+  top: -5rem;
+  left: -5rem;
+  width: 24rem;
+  height: 24rem;
+}
+.blob-green-2 {
+  background: rgba(5, 150, 105, 0.12);
+  filter: blur(80px);
+  bottom: -5rem;
+  right: -5rem;
+  width: 24rem;
+  height: 24rem;
 }

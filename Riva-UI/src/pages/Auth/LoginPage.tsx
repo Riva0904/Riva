@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { login } from '../../api/auth';
+import { login, verifyOtp, resendOtp } from '../../api/auth';
 
-const inp = "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition";
-const lbl = "block text-sm font-medium text-slate-700 mb-1.5";
+type Step = 'login' | 'verify-otp';
 
 const LoginPage: React.FC = () => {
+  const [step, setStep] = useState<Step>('login');
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -15,98 +18,137 @@ const LoginPage: React.FC = () => {
     setError(null); setBusy(true);
     try {
       const res = await login({ emailOrUsername, password });
-      // Redirect based on role
-      if (res.role === 'Admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/dashboard';
-      }
+      window.location.href = res.role === 'Admin' ? '/admin' : '/dashboard';
     } catch (x: unknown) {
-      setError(x instanceof Error ? x.message : 'Login failed');
+      const msg = x instanceof Error ? x.message : 'Login failed';
+      if (msg.toLowerCase().includes('not verified')) {
+        setPendingEmail(emailOrUsername.includes('@') ? emailOrUsername : '');
+        setStep('verify-otp');
+        setInfo('Your account is not verified. Enter the OTP sent to your email.');
+      } else {
+        setError(msg);
+      }
     } finally { setBusy(false); }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null); setBusy(true);
+    try {
+      const email = pendingEmail || emailOrUsername;
+      await verifyOtp({ email, otpCode: otp });
+      setInfo('Account verified! Logging you in...');
+      const res = await login({ emailOrUsername, password });
+      window.location.href = res.role === 'Admin' ? '/admin' : '/dashboard';
+    } catch (x: unknown) {
+      setError(x instanceof Error ? x.message : 'Verification failed');
+    } finally { setBusy(false); }
+  };
 
-        {/* Logo */}
+  const handleResend = async () => {
+    setError(null);
+    try {
+      await resendOtp(pendingEmail || emailOrUsername);
+      setInfo('New OTP sent! Check your email.');
+    } catch (x: unknown) {
+      setError(x instanceof Error ? x.message : 'Failed to resend OTP');
+    }
+  };
+
+  return (
+    <div className="bg-page min-h-screen flex items-center justify-center p-4">
+      <div className="relative w-full max-w-md">
+
         <div className="text-center mb-8">
-          <a href="/" className="inline-flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-purple-600 flex items-center justify-center text-white font-bold text-lg">R</div>
-            <span className="text-xl font-bold text-slate-900">Digital<span className="text-purple-600">Invitation</span></span>
+          <a href="/" className="inline-flex items-center gap-2.5">
+            <div className="logo-icon text-xl">R</div>
+            <span className="text-2xl font-black text-slate-900">
+              Digital<span className="text-green">Invitation</span>
+            </span>
           </a>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl shadow-purple-900/10 p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-            <p className="text-sm text-slate-500 mt-1">Login to access your invitations</p>
-          </div>
+        <div className="card-green">
+          <div className="accent-bar" />
+          <div className="p-8">
 
-          {error && (
-            <div className="mb-5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
-              <strong>Error:</strong> {error}
-              {error.toLowerCase().includes('not verified') && (
-                <span className="block mt-1">
-                  <a href="/register" className="font-semibold underline">Verify your account</a>
-                </span>
-              )}
-            </div>
-          )}
+            {/* Login Step */}
+            {step === 'login' && (
+              <>
+                <div className="mb-7">
+                  <h1 className="text-2xl font-black text-slate-900">Welcome back 👋</h1>
+                  <p className="text-slate-500 mt-1 text-sm">Sign in to your account to continue</p>
+                </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className={lbl}>Email or Username</label>
-              <input
-                className={inp}
-                value={emailOrUsername}
-                onChange={e => setEmailOrUsername(e.target.value)}
-                placeholder="Enter email or username"
-                required
-              />
-            </div>
-            <div>
-              <label className={lbl}>Password</label>
-              <input
-                type="password"
-                className={inp}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
+                {error && <div className="alert-error"><span>⚠️</span><span>{error}</span></div>}
 
-            <button type="submit" disabled={busy}
-              className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-500 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 hover:opacity-95 disabled:opacity-50 transition">
-              {busy ? 'Logging in...' : 'Login →'}
-            </button>
-          </form>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-1.5">Email or Username</label>
+                    <input className="input-green" value={emailOrUsername} onChange={e => setEmailOrUsername(e.target.value)} placeholder="Enter email or username" required />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-black text-slate-700">Password</label>
+                      <a href="/forgot-password" className="text-xs font-black text-green hover:underline">Forgot Password?</a>
+                    </div>
+                    <input type="password" className="input-green" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" required />
+                  </div>
+                  <button type="submit" disabled={busy} className="btn-green mt-2">
+                    {busy ? '⏳ Signing in...' : 'Sign In →'}
+                  </button>
+                </form>
 
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-100" />
-            <span className="text-xs text-slate-400">OR</span>
-            <div className="flex-1 h-px bg-slate-100" />
-          </div>
+                <div className="my-6 flex items-center gap-3">
+                  <div className="flex-1 h-px bg-slate-100" />
+                  <span className="text-xs font-black text-slate-400">OR</span>
+                  <div className="flex-1 h-px bg-slate-100" />
+                </div>
 
-          {/* Quick links */}
-          <div className="space-y-3">
-            <a href="/register"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-              🎉 Create new account
-            </a>
-            <a href="/admin"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-purple-200 py-2.5 text-sm font-medium text-purple-600 hover:bg-purple-50 transition">
-              ⚡ Admin Portal
-            </a>
+                <div className="space-y-3">
+                  <a href="/register" className="btn-green-outline">🎉 Create new account</a>
+                  <a href="/admin"    className="btn-green-soft">⚡ Admin Portal</a>
+                </div>
+              </>
+            )}
+
+            {/* OTP Step */}
+            {step === 'verify-otp' && (
+              <>
+                <div className="mb-7 text-center">
+                  <div className="otp-icon">📧</div>
+                  <h1 className="text-2xl font-black text-slate-900">Verify your account</h1>
+                  <p className="text-sm text-slate-500 mt-2">Enter the 6-digit OTP sent to your email</p>
+                </div>
+
+                {error && <div className="alert-error"><span>⚠️</span><span>{error}</span></div>}
+                {info  && <div className="alert-info" ><span>ℹ️</span><span>{info}</span></div>}
+
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-1.5">Your Email</label>
+                    <input type="email" className="input-green" value={pendingEmail} onChange={e => setPendingEmail(e.target.value)} placeholder="Enter your registered email" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-1.5">OTP Code</label>
+                    <input type="text" maxLength={6} className="input-otp" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g,''))} placeholder="000000" required />
+                    <p className="mt-2 text-center text-xs text-slate-400">⏱ OTP expires in 10 minutes</p>
+                  </div>
+                  <button type="submit" disabled={busy || otp.length !== 6} className="btn-green">
+                    {busy ? '⏳ Verifying...' : '✓ Verify & Login'}
+                  </button>
+                </form>
+
+                <div className="mt-5 flex items-center justify-between text-sm">
+                  <button onClick={() => { setStep('login'); setError(null); setInfo(null); setOtp(''); }} className="font-medium text-slate-400 hover:text-slate-700 transition">← Back to Login</button>
+                  <button onClick={handleResend} className="font-black text-green hover:underline">Resend OTP</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
-          © 2025 Riva Digital Invitation Platform
-        </p>
+        <p className="mt-6 text-center text-xs text-slate-500">© 2025 Riva Digital Invitation Platform</p>
       </div>
     </div>
   );

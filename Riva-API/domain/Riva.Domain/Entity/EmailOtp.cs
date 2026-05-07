@@ -8,6 +8,7 @@ public class EmailOtp
     public string OtpCode { get; set; } = string.Empty;
     public DateTime ExpiryTime { get; set; }
     public string Status { get; set; } = "Pending"; // Pending, Used, Expired
+    public string Type { get; set; } = "Registration"; // Registration, PasswordReset
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation property
