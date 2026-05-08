@@ -238,9 +238,9 @@ const CreateInvitationPage: React.FC = () => {
       <header className="dashboard-header flex-shrink-0">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => navigate('/my-invitations')}
+            <button onClick={() => navigate('/dashboard')}
               className="navbar-btn-outline text-sm flex-shrink-0">
-              ← My Invitations
+              ← Dashboard
             </button>
             <span className="text-slate-300 hidden sm:block">|</span>
             <span className="font-black text-slate-700 text-sm truncate hidden sm:block">

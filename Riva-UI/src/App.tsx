@@ -8,9 +8,7 @@ import RegisterPage from './pages/Auth/RegisterPage';
 import LoginPage from './pages/Auth/LoginPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import CreateInvitationPage from './pages/Invitation/CreateInvitationPage';
-import MyInvitationsPage from './pages/Invitation/MyInvitationsPage';
 import PublicInvitePage from './pages/Public/PublicInvitePage';
-import ProfilePage from './pages/User/Settings/ProfilePage';
 import SettingsPage from './pages/User/Settings/SettingsPage';
 import PaymentPage from './pages/Payment/PaymentPage';
 import SubscriptionPage from './pages/Subscription/SubscriptionPage';
@@ -30,9 +28,7 @@ function App() {
 
         {/* ── User ── */}
         <Route path="/dashboard"        element={<UserDashboard />} />
-        <Route path="/my-invitations"   element={<MyInvitationsPage />} />
-        <Route path="/profile"          element={<ProfilePage />} />
-        <Route path="/settings"         element={<SettingsPage />} />
+<Route path="/settings"         element={<SettingsPage />} />
 
         {/* Invitation editor */}
         <Route path="/invitation/new/:templateId"    element={<CreateInvitationPage />} />

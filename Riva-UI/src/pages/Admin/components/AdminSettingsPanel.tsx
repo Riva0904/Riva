@@ -78,6 +78,24 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
     } finally { setForgotBusy(false); }
   };
 
+  // Notification preferences (persisted in localStorage)
+  const ADMIN_NOTIF_KEY = 'riva_admin_notif_prefs';
+  const ADMIN_NOTIF_ITEMS = [
+    { key: 'registrations', label: 'New user registrations', desc: 'Get notified when new users sign up' },
+    { key: 'payments',      label: 'Payment alerts',          desc: 'Notifications for completed payments' },
+    { key: 'security',      label: 'System security alerts',  desc: 'Important alerts about admin security' },
+  ];
+  const [adminNotifPrefs, setAdminNotifPrefs] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ADMIN_NOTIF_KEY) ?? '{}');
+      return { registrations: true, payments: true, security: true, ...saved };
+    } catch { return { registrations: true, payments: true, security: true }; }
+  });
+  const saveAdminNotifPrefs = () => {
+    localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(adminNotifPrefs));
+    flash('Notification preferences saved!');
+  };
+
   const lbl = "block text-sm font-black text-slate-700 mb-1.5";
 
   const SECTIONS: { id: Section; icon: string; label: string }[] = [
@@ -305,23 +323,23 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
                 className="card-green p-6">
                 <h2 className="text-xl font-black text-slate-900 mb-5">Notification Preferences</h2>
                 <div className="space-y-4">
-                  {[
-                    { label: 'New user registrations', desc: 'Get notified when new users sign up' },
-                    { label: 'Template activity',       desc: 'Know when templates are used or purchased' },
-                    { label: 'Payment alerts',          desc: 'Notifications for completed payments' },
-                    { label: 'System security alerts',  desc: 'Important alerts about admin security' },
-                  ].map((n, i) => (
-                    <label key={n.label}
+                  {ADMIN_NOTIF_ITEMS.map(n => (
+                    <label key={n.key}
                       className="flex items-center justify-between gap-4 rounded-2xl border-2 border-green-100 bg-green-50 p-4 cursor-pointer hover:border-green-300 transition">
                       <div>
                         <p className="font-black text-slate-800">{n.label}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{n.desc}</p>
                       </div>
-                      <input type="checkbox" defaultChecked={i < 2} className="h-5 w-5 accent-green-600" />
+                      <input type="checkbox"
+                        checked={!!adminNotifPrefs[n.key]}
+                        onChange={e => setAdminNotifPrefs(p => ({ ...p, [n.key]: e.target.checked }))}
+                        className="h-5 w-5 accent-green-600 cursor-pointer" />
                     </label>
                   ))}
                 </div>
-                <motion.button whileHover={{ scale: 1.02 }} className="btn-green mt-5">
+                <motion.button onClick={saveAdminNotifPrefs}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  className="btn-green mt-5">
                   Save Preferences
                 </motion.button>
               </motion.div>

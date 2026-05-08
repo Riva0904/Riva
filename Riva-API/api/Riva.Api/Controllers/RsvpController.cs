@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Riva.Domain.Entity;
 using Riva.Dto.Invitation;
+using Riva.Service.Interfaces;
 using Riva.Service.Repository;
 using System.Security.Claims;
 
@@ -11,13 +12,20 @@ namespace Riva.Api.Controllers;
 [Route("api/rsvp")]
 public class RsvpController : ControllerBase
 {
-    private readonly IRsvpRepository _rsvps;
+    private readonly IRsvpRepository       _rsvps;
     private readonly IInvitationRepository _invitations;
+    private readonly IUserRepository       _users;
+    private readonly IEmailService         _email;
+    private readonly IConfiguration        _config;
 
-    public RsvpController(IRsvpRepository rsvps, IInvitationRepository invitations)
+    public RsvpController(IRsvpRepository rsvps, IInvitationRepository invitations,
+        IUserRepository users, IEmailService email, IConfiguration config)
     {
         _rsvps       = rsvps;
         _invitations = invitations;
+        _users       = users;
+        _email       = email;
+        _config      = config;
     }
 
     /// <summary>Submit an RSVP for a public invitation (no auth required).</summary>
@@ -50,6 +58,22 @@ public class RsvpController : ControllerBase
         };
 
         var id = await _rsvps.CreateAsync(rsvp);
+
+        // Notify invitation owner — awaited directly, same pattern as OTP emails
+        try
+        {
+            var owner = await _users.GetByIdAsync(invitation.UserId);
+            if (owner is not null && !string.IsNullOrWhiteSpace(owner.Email))
+            {
+                var link = $"{_config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173"}/dashboard";
+                await _email.SendRsvpNotificationAsync(
+                    owner.Email, owner.EffectiveName,
+                    req.GuestName, req.Status, req.Message,
+                    invitation.Title, link);
+            }
+        }
+        catch { /* email failure must never break the RSVP response */ }
+
         return Ok(new { RsvpId = id, Message = $"Thank you, {req.GuestName}! Your RSVP has been recorded." });
     }
 

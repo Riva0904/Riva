@@ -87,6 +87,18 @@ const UserDashboard: React.FC = () => {
     if (profileSubTab === 'wishlist') setWishlist(getWishlist());
   }, [profileSubTab]);
 
+  // Auto-load RSVP summaries for all published invitations on first load
+  useEffect(() => {
+    const published = invitations.filter(i => i.status === 'Published');
+    if (published.length === 0) return;
+    published.forEach(inv => {
+      getRsvpSummary(inv.invitationId)
+        .then(data => setRsvpData(prev => ({ ...prev, [inv.invitationId]: data })))
+        .catch(() => {});
+    });
+  }, [invitations]);
+
+
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);

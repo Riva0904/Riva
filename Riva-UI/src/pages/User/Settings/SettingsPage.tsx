@@ -27,6 +27,24 @@ const SettingsPage: React.FC = () => {
   const [forgotConfirm, setForgotConfirm] = useState('');
   const [forgotBusy,    setForgotBusy]    = useState(false);
 
+  // Notification preferences (persisted in localStorage)
+  const NOTIF_KEY = 'riva_notif_prefs';
+  const NOTIF_ITEMS = [
+    { key: 'rsvp',     label: 'RSVP responses',         desc: 'Get notified when guests RSVP to your invitations' },
+    { key: 'views',    label: 'Invitation views',        desc: 'Know when someone opens your invitation' },
+    { key: 'security', label: 'Account security alerts', desc: 'Important alerts about your account security' },
+  ];
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(NOTIF_KEY) ?? '{}');
+      return { rsvp: true, views: true, security: true, ...saved };
+    } catch { return { rsvp: true, views: true, security: true }; }
+  });
+  const saveNotifPrefs = () => {
+    localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
+    flash('Notification preferences saved!');
+  };
+
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -111,7 +129,7 @@ const SettingsPage: React.FC = () => {
       <header className="dashboard-header">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/profile')} className="navbar-btn-outline text-sm">← Profile</button>
+            <button onClick={() => navigate('/dashboard')} className="navbar-btn-outline text-sm">← Dashboard</button>
             <span className="font-black text-slate-900">Account <span className="text-green">Settings</span></span>
           </div>
         </div>
@@ -296,7 +314,7 @@ const SettingsPage: React.FC = () => {
                   <div className="rounded-2xl bg-green-50 border-2 border-green-200 p-4">
                     <h4 className="font-black text-green-800 mb-1">Edit Profile</h4>
                     <p className="text-sm text-green-700 mb-3">Update your username, email, and display name.</p>
-                    <a href="/profile" className="btn-green w-auto inline-flex px-5 py-2 text-sm">Go to Profile →</a>
+                    <a href="/dashboard" className="btn-green w-auto inline-flex px-5 py-2 text-sm">Go to Dashboard →</a>
                   </div>
 
                   <div className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-4">
@@ -328,23 +346,22 @@ const SettingsPage: React.FC = () => {
                   className="card-green p-6">
                   <h2 className="text-xl font-black text-slate-900 mb-5">Notification Preferences</h2>
                   <div className="space-y-4">
-                    {[
-                      { label: 'RSVP responses',       desc: 'Get notified when guests RSVP to your invitations' },
-                      { label: 'Invitation views',      desc: 'Know when someone opens your invitation' },
-                      { label: 'New template alerts',   desc: 'Be notified when new templates are available' },
-                      { label: 'Account security alerts', desc: 'Important alerts about your account security' },
-                    ].map((n, i) => (
-                      <label key={n.label} className="flex items-center justify-between gap-4 rounded-2xl border-2 border-green-100 bg-green-50 p-4 cursor-pointer hover:border-green-300 transition">
+                    {NOTIF_ITEMS.map(n => (
+                      <label key={n.key} className="flex items-center justify-between gap-4 rounded-2xl border-2 border-green-100 bg-green-50 p-4 cursor-pointer hover:border-green-300 transition">
                         <div>
                           <p className="font-black text-slate-800">{n.label}</p>
                           <p className="text-xs text-slate-500 mt-0.5">{n.desc}</p>
                         </div>
-                        <input type="checkbox" defaultChecked={i < 2}
+                        <input type="checkbox"
+                          checked={!!notifPrefs[n.key]}
+                          onChange={e => setNotifPrefs(p => ({ ...p, [n.key]: e.target.checked }))}
                           className="h-5 w-5 accent-green-600 cursor-pointer" />
                       </label>
                     ))}
                   </div>
-                  <motion.button whileHover={{ scale: 1.02 }} className="btn-green mt-5">
+                  <motion.button onClick={saveNotifPrefs}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    className="btn-green mt-5">
                     Save Preferences
                   </motion.button>
                 </motion.div>
