@@ -9,11 +9,13 @@ export interface AdminRegisterRequest { username: string; email: string; passwor
 export interface VerifyOtpRequest { email: string; otpCode: string; }
 export interface UserDto { id: number; username: string; email: string; role: string; isActive: boolean; createdAt: string; }
 
-import { setAuthToken as _set } from './client';
+import { setAuthToken } from './client';
 
 export async function login(req: LoginRequest): Promise<LoginResponse> {
   const res = await apiFetch<LoginResponse>('auth/login', { method: 'POST', body: JSON.stringify(req) });
-  _set(res.token);
+  setAuthToken(res.token);
+  localStorage.setItem('riva_username', res.username);
+  localStorage.setItem('riva_email', res.email);
   return res;
 }
 
@@ -53,7 +55,30 @@ export async function getCurrentUser(): Promise<UserDto> {
   return apiFetch<UserDto>('users/me', { method: 'POST' });
 }
 
-export function logout() { _set(null); }
+export function logout() {
+  setAuthToken(null);
+  localStorage.removeItem('riva_username');
+  localStorage.removeItem('riva_email');
+}
+
+export function getStoredUsername(): string | null {
+  // Try localStorage first (set on login)
+  const stored = localStorage.getItem('riva_username');
+  if (stored) return stored;
+  // Fall back to JWT claims (for sessions that pre-date the localStorage save)
+  const token = localStorage.getItem('riva_token');
+  if (!token) return null;
+  try {
+    const p = JSON.parse(atob(token.split('.')[1]));
+    return (
+      p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
+      p['unique_name'] ||
+      p.name ||
+      p.sub ||
+      null
+    );
+  } catch { return null; }
+}
 
 export function getStoredRole(): string | null {
   const token = localStorage.getItem('riva_token');

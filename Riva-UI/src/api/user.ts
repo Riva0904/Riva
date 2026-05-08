@@ -1,8 +1,10 @@
 import { apiFetch } from './client';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
+const API_BASE    = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
+const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+const toAbsoluteUrl = (url: string): string =>
+  url.startsWith('http') ? url : BACKEND_BASE + (url.startsWith('/') ? '' : '/') + url;
 
 export interface UserProfile {
   id: number;
@@ -15,7 +17,6 @@ export interface UserProfile {
   createdAt: string;
   updatedAt?: string;
   lastLoginAt?: string;
-  // Usage stats (only invited, not previewed)
   freeTemplatesUsed: number;
   paidTemplatesUsed: number;
   totalInvitationsCreated: number;
@@ -34,24 +35,20 @@ export interface ChangePasswordRequest {
   confirmPassword: string;
 }
 
-// ── API calls ─────────────────────────────────────────────────────────────────
-
 export async function getUserProfile(): Promise<UserProfile> {
-  return apiFetch<UserProfile>('users/profile');
+  const profile = await apiFetch<UserProfile>('users/profile');
+  if (profile.profileImageUrl) {
+    profile.profileImageUrl = toAbsoluteUrl(profile.profileImageUrl);
+  }
+  return profile;
 }
 
 export async function updateProfile(req: UpdateProfileRequest): Promise<{ message: string }> {
-  return apiFetch('users/profile', {
-    method: 'PATCH',
-    body: JSON.stringify(req),
-  });
+  return apiFetch('users/profile', { method: 'PATCH', body: JSON.stringify(req) });
 }
 
 export async function changePassword(req: ChangePasswordRequest): Promise<{ message: string }> {
-  return apiFetch('users/change-password', {
-    method: 'POST',
-    body: JSON.stringify(req),
-  });
+  return apiFetch('users/change-password', { method: 'POST', body: JSON.stringify(req) });
 }
 
 export async function uploadProfileImage(file: File): Promise<{ imageUrl: string; message: string }> {
@@ -59,11 +56,12 @@ export async function uploadProfileImage(file: File): Promise<{ imageUrl: string
   form.append('file', file);
   const token = localStorage.getItem('riva_token');
   const res   = await fetch(`${API_BASE}/users/profile-image`, {
-    method: 'POST',
+    method:  'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
+    body:    form,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Upload failed');
+  if (data.imageUrl) data.imageUrl = toAbsoluteUrl(data.imageUrl);
   return data;
 }

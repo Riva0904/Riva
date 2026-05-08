@@ -10,6 +10,8 @@ export interface UserSession {
   lastLoginAt: string | null;
   templates: { free: number; paid: number; total: number };
   categories: { categoryId: number; name: string; freeCount: number; paidCount: number; total: number }[];
+  subscriptionPlan: string;       // 'Starter' | 'Premium' | 'Business'
+  subscriptionExpiry: string | null;
 }
 
 export async function getUserSession(): Promise<UserSession> {

@@ -12,6 +12,8 @@ import MyInvitationsPage from './pages/Invitation/MyInvitationsPage';
 import PublicInvitePage from './pages/Public/PublicInvitePage';
 import ProfilePage from './pages/User/Settings/ProfilePage';
 import SettingsPage from './pages/User/Settings/SettingsPage';
+import PaymentPage from './pages/Payment/PaymentPage';
+import SubscriptionPage from './pages/Subscription/SubscriptionPage';
 
 function App() {
   return (
@@ -35,6 +37,10 @@ function App() {
         {/* Invitation editor */}
         <Route path="/invitation/new/:templateId"    element={<CreateInvitationPage />} />
         <Route path="/invitation/:invitationId/edit" element={<CreateInvitationPage />} />
+
+        {/* ── Payment & Subscription ── */}
+        <Route path="/payment"          element={<PaymentPage />} />
+        <Route path="/subscription"     element={<SubscriptionPage />} />
 
         {/* ── Admin ── */}
         <Route path="/admin"            element={<AdminPage />} />

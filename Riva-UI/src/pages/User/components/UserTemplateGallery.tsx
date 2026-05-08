@@ -5,6 +5,23 @@ import { getTemplates, type TemplateListItem } from '../../../api/templates';
 import { getCategories, type CategoryDto } from '../../../api/categories';
 import { getStoredAuthToken } from '../../../api/client';
 
+const WISHLIST_KEY = 'riva_wishlist';
+
+export interface WishlistItem {
+  templateId: number;
+  name: string;
+  categoryName?: string;
+  previewImageUrl?: string;
+  thumbnailUrl?: string;
+  isPaid: boolean;
+  price?: number;
+}
+
+const getWishlist = (): WishlistItem[] => {
+  try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); }
+  catch { return []; }
+};
+
 const CATEGORY_EMOJI: Record<string, string> = {
   Birthday: '🎂', Marriage: '💍', Wedding: '💍', 'First Holy Communion': '✝️',
   Anniversary: '💐', Engagement: '💍', Party: '🎉', Baby: '🍼', Event: '📅',
@@ -13,7 +30,6 @@ const CATEGORY_EMOJI: Record<string, string> = {
 const emojiFor = (name = '') =>
   CATEGORY_EMOJI[name] ?? (name.includes('Birth') ? '🎂' : name.includes('Wed') ? '💍' : '🎉');
 
-// Skeleton card
 const SkeletonCard = () => (
   <div className="animate-pulse rounded-2xl overflow-hidden border-2 border-green-50 bg-white">
     <div className="bg-green-100" style={{ height: 160 }} />
@@ -34,28 +50,32 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: 'easeOut' as const } },
 };
 
-const UserTemplateGallery: React.FC = () => {
+interface Props { subscriptionPlan?: string; }
+
+const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) => {
   const navigate = useNavigate();
-  const [templates,  setTemplates]  = useState<TemplateListItem[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [activeCat,  setActiveCat]  = useState<number | undefined>();
-  const [filter,     setFilter]     = useState<'all' | 'free' | 'paid'>('all');
-  const [search,     setSearch]     = useState('');
-  const [loading,    setLoading]    = useState(true);
-  const [preview,    setPreview]    = useState<TemplateListItem | null>(null);
+  const [templates,   setTemplates]   = useState<TemplateListItem[]>([]);
+  const [categories,  setCategories]  = useState<CategoryDto[]>([]);
+  const [activeCat,   setActiveCat]   = useState<number | undefined>();
+  const [filter,      setFilter]      = useState<'all' | 'free' | 'paid'>('all');
+  const [search,      setSearch]      = useState('');
+  const [loading,     setLoading]     = useState(true);
+  const [preview,     setPreview]     = useState<TemplateListItem | null>(null);
+  const [wishlistIds, setWishlistIds] = useState<Set<number>>(
+    () => new Set(getWishlist().map(w => w.templateId))
+  );
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       getTemplates(activeCat, filter === 'all' ? undefined : filter === 'paid'),
-      getCategories()
+      getCategories(),
     ]).then(([tRes, cats]) => {
       setTemplates(tRes.templates);
       setCategories(cats);
     }).finally(() => setLoading(false));
   }, [activeCat, filter]);
 
-  // Client-side search filter
   const displayed = useMemo(() =>
     search.trim()
       ? templates.filter(t =>
@@ -64,16 +84,43 @@ const UserTemplateGallery: React.FC = () => {
       : templates,
     [templates, search]);
 
-  const handleUseTemplate = (templateId: number) => {
+  const hasFullAccess = subscriptionPlan === 'Premium' || subscriptionPlan === 'Business';
+
+  const handleUseTemplate = (t: TemplateListItem) => {
     if (!getStoredAuthToken()) { navigate('/login'); return; }
-    navigate(`/invitation/new/${templateId}`);
+    if (t.isPaid && !hasFullAccess) {
+      // Gate: redirect to payment for this template
+      navigate(`/payment?templateId=${t.templateId}&amount=${Math.round((t.price ?? 0) * 83)}&name=${encodeURIComponent(t.name)}`);
+      return;
+    }
+    navigate(`/invitation/new/${t.templateId}`);
+  };
+
+  const toggleWishlist = (t: TemplateListItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const current = getWishlist();
+    let next: WishlistItem[];
+    if (wishlistIds.has(t.templateId)) {
+      next = current.filter(w => w.templateId !== t.templateId);
+    } else {
+      next = [...current, {
+        templateId: t.templateId,
+        name: t.name,
+        categoryName: t.categoryName,
+        previewImageUrl: t.previewImageUrl,
+        thumbnailUrl: t.thumbnailUrl,
+        isPaid: t.isPaid,
+        price: t.price,
+      }];
+    }
+    localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
+    setWishlistIds(new Set(next.map(w => w.templateId)));
   };
 
   return (
     <div>
       {/* Search + filters */}
       <div className="mb-6 space-y-3">
-        {/* Search */}
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">🔍</span>
           <input
@@ -86,7 +133,6 @@ const UserTemplateGallery: React.FC = () => {
           )}
         </div>
 
-        {/* Category + type filters */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setActiveCat(undefined)}
             className={`rounded-full px-4 py-1.5 text-sm font-black transition ${!activeCat
@@ -102,8 +148,6 @@ const UserTemplateGallery: React.FC = () => {
               {emojiFor(c.name)} {c.name}
             </button>
           ))}
-
-          {/* Free/Paid toggle */}
           <div className="ml-auto tab-switcher" style={{ marginBottom: 0, width: 'auto', padding: '2px' }}>
             {(['all', 'free', 'paid'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
@@ -115,7 +159,6 @@ const UserTemplateGallery: React.FC = () => {
         </div>
       </div>
 
-      {/* Results count */}
       {!loading && (
         <p className="mb-4 text-sm text-slate-400 font-semibold">
           {displayed.length} template{displayed.length !== 1 ? 's' : ''} found
@@ -123,7 +166,6 @@ const UserTemplateGallery: React.FC = () => {
         </p>
       )}
 
-      {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}
@@ -145,7 +187,6 @@ const UserTemplateGallery: React.FC = () => {
               whileHover={{ y: -6, transition: { duration: 0.2 } }}
               className="group card-green rounded-2xl overflow-hidden cursor-pointer">
 
-              {/* Thumbnail */}
               <div className="relative bg-light-green overflow-hidden" style={{ height: 160 }}>
                 {t.previewImageUrl || t.thumbnailUrl ? (
                   <img src={t.previewImageUrl || t.thumbnailUrl || ''}
@@ -163,6 +204,13 @@ const UserTemplateGallery: React.FC = () => {
                   t.isPaid ? 'bg-amber-400 text-amber-900' : 'bg-green-500 text-white'}`}>
                   {t.isPaid ? `$${t.price}` : 'Free'}
                 </span>
+                {/* Wishlist heart */}
+                <motion.button
+                  whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
+                  onClick={e => toggleWishlist(t, e)}
+                  className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow text-base transition hover:bg-white">
+                  {wishlistIds.has(t.templateId) ? '❤️' : '🤍'}
+                </motion.button>
               </div>
 
               <div className="p-4">
@@ -198,8 +246,6 @@ const UserTemplateGallery: React.FC = () => {
               onClick={e => e.stopPropagation()}>
 
               <div className="accent-bar" />
-
-              {/* Preview thumbnail */}
               <div className="relative bg-light-green" style={{ height: 180 }}>
                 {preview.previewImageUrl || preview.thumbnailUrl ? (
                   <img src={preview.previewImageUrl || preview.thumbnailUrl || ''}
@@ -218,7 +264,6 @@ const UserTemplateGallery: React.FC = () => {
                 {preview.description && (
                   <p className="text-sm text-slate-600 mt-2 leading-5">{preview.description}</p>
                 )}
-
                 <div className="my-4 flex items-center justify-between">
                   <span className={`rounded-full px-3 py-1 text-sm font-black ${
                     preview.isPaid ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
@@ -228,15 +273,13 @@ const UserTemplateGallery: React.FC = () => {
                     Added {new Date(preview.createdDate).toLocaleDateString()}
                   </span>
                 </div>
-
                 <div className="flex gap-2">
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    onClick={() => handleUseTemplate(preview.templateId)}
+                    onClick={() => handleUseTemplate(preview)}
                     className="btn-green flex-1 py-3">
                     {preview.isPaid ? '🔒 Buy & Use' : '✨ Use Template'}
                   </motion.button>
-                  <button onClick={() => setPreview(null)}
-                    className="btn-green-outline flex-none px-4">✕</button>
+                  <button onClick={() => setPreview(null)} className="btn-green-outline flex-none px-4">✕</button>
                 </div>
               </div>
             </motion.div>

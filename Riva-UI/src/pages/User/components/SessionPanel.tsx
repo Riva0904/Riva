@@ -37,7 +37,7 @@ const SessionPanel: React.FC<Props> = ({ session }) => {
               {session.role}
             </span>
             <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-black text-green-700">
-              ðŸŸ¢ Active
+              🟢 Active
             </span>
           </div>
 
@@ -52,10 +52,6 @@ const SessionPanel: React.FC<Props> = ({ session }) => {
             </div>
           </div>
 
-          <a href="/profile"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-green-300 bg-white py-2 text-sm font-black text-green-700 hover:bg-white/70 transition">
-            ðŸ‘¤ View Full Profile
-          </a>
         </div>
       </motion.div>
 

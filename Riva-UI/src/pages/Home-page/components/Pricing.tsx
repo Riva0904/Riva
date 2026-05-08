@@ -1,24 +1,30 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { getStoredAuthToken } from '../../../api/client';
+
+const isLoggedIn = () => !!getStoredAuthToken();
 
 const plans = [
   {
     id: 1, name: 'Starter', price: '$0', period: '/mo',
     desc: 'Perfect for personal celebrations',
     features: ['3 invitation templates','Unlimited RSVPs','WhatsApp & email sharing','Custom fields','QR code generation'],
-    cta: 'Start Free', premium: false, badge: null,
+    cta: 'Start Free', ctaHref: () => isLoggedIn() ? '/dashboard' : '/register',
+    premium: false, badge: null,
   },
   {
     id: 2, name: 'Premium', price: '$19', period: '/mo',
     desc: 'For unforgettable events',
     features: ['Unlimited templates','Full animations & themes','Password-protected invites','RSVP analytics dashboard','Custom domain support','Priority delivery','Remove Riva branding'],
-    cta: 'Choose Premium', premium: true, badge: '⭐ Most Popular',
+    cta: 'Choose Premium', ctaHref: () => isLoggedIn() ? '/subscription' : '/register',
+    premium: true, badge: '⭐ Most Popular',
   },
   {
     id: 3, name: 'Business', price: '$45', period: '/mo',
     desc: 'For agencies and large events',
     features: ['Everything in Premium','White-label branding','API access','Bulk invitations (1000+)','Dedicated support','SLA guarantee','Team collaboration'],
-    cta: 'Contact Sales', premium: false, badge: null,
+    cta: 'Contact Sales', ctaHref: () => isLoggedIn() ? '/subscription' : '/register',
+    premium: false, badge: null,
   },
 ];
 
@@ -78,7 +84,7 @@ const Pricing: React.FC = () => (
               ))}
             </ul>
 
-            <motion.a href="/register" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            <motion.a href={p.ctaHref()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               className="flex w-full items-center justify-center rounded-full py-3.5 text-sm font-black transition"
               style={p.premium
                 ? { background: 'linear-gradient(135deg,#4ade80,#22c55e)', color: '#052e16' }
