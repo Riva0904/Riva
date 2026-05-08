@@ -80,6 +80,10 @@ export function getStoredUsername(): string | null {
   } catch { return null; }
 }
 
+export function getStoredEmail(): string | null {
+  return localStorage.getItem('riva_email');
+}
+
 export function getStoredRole(): string | null {
   const token = localStorage.getItem('riva_token');
   if (!token) return null;

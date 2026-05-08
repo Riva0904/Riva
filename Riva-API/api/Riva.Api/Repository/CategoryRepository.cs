@@ -12,13 +12,13 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<IEnumerable<Category>> GetAllActiveAsync()
     {
-        const string sql = "SELECT CategoryId, Name, IsActive FROM Categories WHERE IsActive = 1 ORDER BY SortOrder, CategoryId";
+        const string sql = "SELECT CategoryId, Name, IsActive FROM Categories WHERE IsActive = 1 ORDER BY CategoryId";
         return await QueryAll(sql);
     }
 
     public async Task<IEnumerable<Category>> GetAllAsync()
     {
-        const string sql = "SELECT CategoryId, Name, IsActive FROM Categories ORDER BY SortOrder, CategoryId";
+        const string sql = "SELECT CategoryId, Name, IsActive FROM Categories ORDER BY CategoryId";
         return await QueryAll(sql);
     }
 
@@ -34,7 +34,7 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<int> CreateAsync(string name)
     {
-        const string sql = "INSERT INTO Categories (Name, IsActive, SortOrder) OUTPUT INSERTED.CategoryId VALUES (@Name, 1, 0)";
+        const string sql = "INSERT INTO Categories (Name) OUTPUT INSERTED.CategoryId VALUES (@Name)";
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var cmd  = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Name", name.Trim());

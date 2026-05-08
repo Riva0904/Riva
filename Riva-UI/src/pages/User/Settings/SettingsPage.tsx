@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { changePassword } from '../../../api/user';
-import { logout } from '../../../api/auth';
+import { logout, forgotPassword, resetPassword, getStoredEmail } from '../../../api/auth';
 
 type Section = 'password' | 'account' | 'notifications';
 
@@ -17,6 +17,15 @@ const SettingsPage: React.FC = () => {
   const [confirmPw,  setConfirmPw]  = useState('');
   const [pwLoading,  setPwLoading]  = useState(false);
   const [showPw,     setShowPw]     = useState(false);
+
+  // Forgot password inline flow
+  type ForgotStep = 'idle' | 'email' | 'otp';
+  const [forgotStep,    setForgotStep]    = useState<ForgotStep>('idle');
+  const [forgotEmail,   setForgotEmail]   = useState(getStoredEmail() ?? '');
+  const [forgotOtp,     setForgotOtp]     = useState('');
+  const [forgotNewPw,   setForgotNewPw]   = useState('');
+  const [forgotConfirm, setForgotConfirm] = useState('');
+  const [forgotBusy,    setForgotBusy]    = useState(false);
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -36,6 +45,37 @@ const SettingsPage: React.FC = () => {
     } catch (err: unknown) {
       flash(err instanceof Error ? err.message : 'Failed to change password.', 'error');
     } finally { setPwLoading(false); }
+  };
+
+  const resetForgot = () => {
+    setForgotStep('idle'); setForgotOtp('');
+    setForgotNewPw(''); setForgotConfirm('');
+  };
+
+  const handleSendOtp = async (e: React.SyntheticEvent) => {
+    e.preventDefault(); setForgotBusy(true);
+    try {
+      await forgotPassword(forgotEmail);
+      setForgotStep('otp');
+      flash('OTP sent to your email!');
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'Failed to send OTP', 'error');
+    } finally { setForgotBusy(false); }
+  };
+
+  const handleForgotReset = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (forgotNewPw !== forgotConfirm) { flash('Passwords do not match.', 'error'); return; }
+    if (forgotNewPw.length < 6)        { flash('Password must be at least 6 characters.', 'error'); return; }
+    setForgotBusy(true);
+    try {
+      await resetPassword(forgotEmail, forgotOtp, forgotNewPw);
+      flash('Password reset! Logging out…');
+      resetForgot();
+      setTimeout(() => { logout(); navigate('/login'); }, 2000);
+    } catch (err: unknown) {
+      flash(err instanceof Error ? err.message : 'Reset failed', 'error');
+    } finally { setForgotBusy(false); }
   };
 
   const handleLogoutAll = () => {
@@ -107,67 +147,142 @@ const SettingsPage: React.FC = () => {
                 <motion.div key="password"
                   initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                   className="card-green p-6">
-                  <h2 className="text-xl font-black text-slate-900 mb-1">Change Password</h2>
-                  <p className="text-sm text-slate-500 mb-6">You'll be logged out after a successful password change.</p>
 
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label className={lbl}>Current Password *</label>
-                      <div className="relative">
-                        <input
-                          type={showPw ? 'text' : 'password'}
-                          className={inputCls}
-                          value={currentPw}
-                          onChange={e => setCurrentPw(e.target.value)}
-                          placeholder="Enter current password"
-                          required />
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
-                          {showPw ? '🙈' : '👁'}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="border-t-2 border-green-50 pt-4">
-                      <div>
-                        <label className={lbl}>New Password *</label>
-                        <input type="password" className={inputCls} value={newPw}
-                          onChange={e => setNewPw(e.target.value)} placeholder="Min 6 characters" required />
-                        {newPw.length > 0 && (
-                          <div className="mt-2 flex gap-1">
-                            {[1,2,3,4].map(i => (
-                              <div key={i} className={`h-1.5 flex-1 rounded-full transition ${
-                                newPw.length >= i * 3
-                                  ? i <= 2 ? 'bg-red-400' : i === 3 ? 'bg-amber-400' : 'bg-green-500'
-                                  : 'bg-slate-200'
-                              }`} />
-                            ))}
-                            <span className="text-xs text-slate-400 ml-1">
-                              {newPw.length < 6 ? 'Weak' : newPw.length < 9 ? 'Fair' : newPw.length < 12 ? 'Good' : 'Strong'}
-                            </span>
+                  {/* Normal change-password form */}
+                  {forgotStep === 'idle' && (
+                    <>
+                      <h2 className="text-xl font-black text-slate-900 mb-1">Change Password</h2>
+                      <p className="text-sm text-slate-500 mb-6">You'll be logged out after a successful password change.</p>
+                      <form onSubmit={handleChangePassword} className="space-y-4">
+                        <div>
+                          <label className={lbl}>Current Password *</label>
+                          <div className="relative">
+                            <input type={showPw ? 'text' : 'password'} className={inputCls}
+                              value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                              placeholder="Enter current password" required />
+                            <button type="button" onClick={() => setShowPw(!showPw)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
+                              {showPw ? '🙈' : '👁'}
+                            </button>
                           </div>
-                        )}
-                      </div>
+                          <button type="button" onClick={() => setForgotStep('email')}
+                            className="mt-1.5 text-xs font-black text-green-700 hover:underline">
+                            Forgot current password?
+                          </button>
+                        </div>
+                        <div className="border-t-2 border-green-50 pt-4">
+                          <div>
+                            <label className={lbl}>New Password *</label>
+                            <input type="password" className={inputCls} value={newPw}
+                              onChange={e => setNewPw(e.target.value)} placeholder="Min 6 characters" required />
+                            {newPw.length > 0 && (
+                              <div className="mt-2 flex gap-1">
+                                {[1,2,3,4].map(i => (
+                                  <div key={i} className={`h-1.5 flex-1 rounded-full transition ${
+                                    newPw.length >= i * 3
+                                      ? i <= 2 ? 'bg-red-400' : i === 3 ? 'bg-amber-400' : 'bg-green-500'
+                                      : 'bg-slate-200'}`} />
+                                ))}
+                                <span className="text-xs text-slate-400 ml-1">
+                                  {newPw.length < 6 ? 'Weak' : newPw.length < 9 ? 'Fair' : newPw.length < 12 ? 'Good' : 'Strong'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-4">
+                            <label className={lbl}>Confirm New Password *</label>
+                            <input type="password" className={inputCls} value={confirmPw}
+                              onChange={e => setConfirmPw(e.target.value)} placeholder="Re-enter new password" required />
+                            {confirmPw && newPw !== confirmPw && (
+                              <p className="mt-1 text-xs text-red-500 font-semibold">Passwords don't match</p>
+                            )}
+                            {confirmPw && newPw === confirmPw && newPw.length >= 6 && (
+                              <p className="mt-1 text-xs text-green-600 font-semibold">✓ Passwords match</p>
+                            )}
+                          </div>
+                        </div>
+                        <motion.button type="submit" disabled={pwLoading || newPw !== confirmPw || newPw.length < 6}
+                          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                          className="btn-green mt-2">
+                          {pwLoading ? '⏳ Changing password…' : '🔑 Change Password'}
+                        </motion.button>
+                      </form>
+                    </>
+                  )}
 
-                      <div className="mt-4">
-                        <label className={lbl}>Confirm New Password *</label>
-                        <input type="password" className={inputCls} value={confirmPw}
-                          onChange={e => setConfirmPw(e.target.value)} placeholder="Re-enter new password" required />
-                        {confirmPw && newPw !== confirmPw && (
-                          <p className="mt-1 text-xs text-red-500 font-semibold">Passwords don't match</p>
-                        )}
-                        {confirmPw && newPw === confirmPw && newPw.length >= 6 && (
-                          <p className="mt-1 text-xs text-green-600 font-semibold">✓ Passwords match</p>
-                        )}
-                      </div>
-                    </div>
+                  {/* Forgot: enter email */}
+                  {forgotStep === 'email' && (
+                    <>
+                      <button onClick={resetForgot} className="mb-4 text-xs font-black text-slate-400 hover:text-slate-700 transition">
+                        ← Back
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 mb-1">Forgot Password</h2>
+                      <p className="text-sm text-slate-500 mb-6">Enter your registered email and we'll send a reset OTP.</p>
+                      <form onSubmit={handleSendOtp} className="space-y-4">
+                        <div>
+                          <label className={lbl}>Registered Email *</label>
+                          <input type="email" className={inputCls} value={forgotEmail}
+                            onChange={e => setForgotEmail(e.target.value)}
+                            placeholder="your@email.com" required />
+                        </div>
+                        <motion.button type="submit" disabled={forgotBusy}
+                          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                          className="btn-green disabled:opacity-50">
+                          {forgotBusy ? '⏳ Sending…' : '📧 Send OTP'}
+                        </motion.button>
+                      </form>
+                    </>
+                  )}
 
-                    <motion.button type="submit" disabled={pwLoading || newPw !== confirmPw || newPw.length < 6}
-                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                      className="btn-green mt-2">
-                      {pwLoading ? '⏳ Changing password…' : '🔑 Change Password'}
-                    </motion.button>
-                  </form>
+                  {/* Forgot: enter OTP + new password */}
+                  {forgotStep === 'otp' && (
+                    <>
+                      <button onClick={resetForgot} className="mb-4 text-xs font-black text-slate-400 hover:text-slate-700 transition">
+                        ← Back
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 mb-1">Reset Password</h2>
+                      <p className="text-sm text-slate-500 mb-6">
+                        OTP sent to <strong className="text-slate-700">{forgotEmail}</strong>. Enter it below with your new password.
+                      </p>
+                      <form onSubmit={handleForgotReset} className="space-y-4">
+                        <div>
+                          <label className={lbl}>OTP Code *</label>
+                          <input type="text" maxLength={6} className={`${inputCls} tracking-widest text-center text-lg font-black`}
+                            value={forgotOtp}
+                            onChange={e => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                            placeholder="000000" required />
+                          <div className="mt-1 flex items-center justify-between">
+                            <p className="text-xs text-slate-400">⏱ Expires in 10 minutes</p>
+                            <button type="button"
+                              onClick={async () => { try { await forgotPassword(forgotEmail); flash('OTP resent!'); } catch { flash('Failed to resend OTP', 'error'); } }}
+                              className="text-xs font-black text-green-700 hover:underline">
+                              Resend OTP
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className={lbl}>New Password *</label>
+                          <input type="password" className={inputCls} value={forgotNewPw}
+                            onChange={e => setForgotNewPw(e.target.value)} placeholder="Min 6 characters" required />
+                        </div>
+                        <div>
+                          <label className={lbl}>Confirm New Password *</label>
+                          <input type="password" className={inputCls} value={forgotConfirm}
+                            onChange={e => setForgotConfirm(e.target.value)} placeholder="Re-enter new password" required />
+                          {forgotConfirm && forgotNewPw !== forgotConfirm && (
+                            <p className="mt-1 text-xs text-red-500 font-semibold">Passwords don't match</p>
+                          )}
+                        </div>
+                        <motion.button type="submit"
+                          disabled={forgotBusy || forgotOtp.length !== 6 || forgotNewPw !== forgotConfirm || forgotNewPw.length < 6}
+                          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                          className="btn-green disabled:opacity-50 disabled:cursor-not-allowed">
+                          {forgotBusy ? '⏳ Resetting…' : '🔑 Reset Password'}
+                        </motion.button>
+                      </form>
+                    </>
+                  )}
+
                 </motion.div>
               )}
 

@@ -21,6 +21,7 @@ const CategoryManager: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try { setCategories(await getAdminCategories()); }
+    catch (err: unknown) { flash(`⚠️ ${err instanceof Error ? err.message : 'Failed to load categories'}`); }
     finally { setLoading(false); }
   };
 
@@ -104,7 +105,8 @@ const CategoryManager: React.FC = () => {
           required />
         <motion.button type="submit" disabled={adding || !newName.trim()}
           whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-          className="btn-green w-auto px-5 py-2.5 flex-shrink-0">
+          style={{ width: 'auto' }}
+          className="btn-green px-5 py-2.5 flex-shrink-0">
           {adding ? '⏳' : '+ Add'}
         </motion.button>
       </form>
@@ -134,7 +136,8 @@ const CategoryManager: React.FC = () => {
                     <input className="input-green flex-1 py-1.5" autoFocus
                       value={editName} onChange={e => setEditName(e.target.value)} />
                     <button type="submit" disabled={saving === cat.categoryId}
-                      className="btn-green w-auto px-3 py-1.5 text-xs">
+                      style={{ width: 'auto' }}
+                      className="btn-green px-3 py-1.5 text-xs">
                       {saving === cat.categoryId ? '⏳' : '✓ Save'}
                     </button>
                     <button type="button" onClick={() => setEditId(null)}
