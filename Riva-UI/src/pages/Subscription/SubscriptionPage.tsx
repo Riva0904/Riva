@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getStoredAuthToken } from '../../api/client';
@@ -79,34 +79,43 @@ const SubscriptionPage: React.FC = () => {
               <motion.div key={plan.id}
                 custom={i} variants={cardVariants} initial="hidden" animate="visible"
                 whileHover={{ y: -8, transition: { duration: 0.2 } }}
-                className={`rounded-3xl p-8 shadow-xl transition duration-300 ${
-                  plan.premium ? 'bg-dark-green' : 'bg-white border-2 border-green-100'
-                } ${isCurrent ? 'ring-4 ring-green-400 ring-offset-2' : ''}`}>
+                className="rounded-3xl p-8 shadow-xl transition duration-300"
+                style={plan.premium
+                  ? { background: 'var(--color-gradient)', boxShadow: isCurrent ? '0 0 0 4px var(--color-primary), 0 20px 40px rgba(var(--color-primary-rgb),0.35)' : '0 20px 40px rgba(var(--color-primary-rgb),0.30)' }
+                  : { background: 'var(--bg-card)', border: `2px solid ${isCurrent ? 'var(--color-primary)' : 'var(--border-base)'}`, boxShadow: 'var(--shadow-card)' }}>
 
                 {plan.badge && (
                   <div className="mb-4 inline-block rounded-full px-3 py-1 text-xs font-black"
-                    style={{ background: 'rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                    style={plan.premium
+                      ? { background: 'rgba(255,255,255,0.25)', color: 'white' }
+                      : { background: 'rgba(var(--color-primary-rgb),0.12)', color: 'var(--color-primary-text)' }}>
                     {plan.badge}
                   </div>
                 )}
                 {isCurrent && (
-                  <div className="mb-4 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-700">
+                  <div className="mb-4 inline-block rounded-full px-3 py-1 text-xs font-black"
+                    style={{ background: 'rgba(var(--color-primary-rgb),0.15)', color: 'var(--color-primary-text)' }}>
                     ✓ Active Plan
                   </div>
                 )}
 
-                <h3 className={`text-2xl font-black ${plan.premium ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                <p className={`text-sm mt-1 mb-4 ${plan.premium ? 'text-green-300' : 'text-slate-500'}`}>{plan.desc}</p>
+                <h3 className="text-2xl font-black"
+                  style={{ color: plan.premium ? 'white' : 'var(--text-heading)' }}>{plan.name}</h3>
+                <p className="text-sm mt-1 mb-4"
+                  style={{ color: plan.premium ? 'rgba(255,255,255,0.80)' : 'var(--text-muted)' }}>{plan.desc}</p>
 
                 <div className="flex items-end gap-1 mb-6">
                   {plan.priceInr === 0 ? (
-                    <span className={`text-5xl font-black ${plan.premium ? 'text-white' : 'text-slate-900'}`}>Free</span>
+                    <span className="text-5xl font-black"
+                      style={{ color: plan.premium ? 'white' : 'var(--text-heading)' }}>Free</span>
                   ) : (
                     <>
-                      <span className={`text-5xl font-black ${plan.premium ? 'text-white' : 'text-slate-900'}`}>
+                      <span className="text-5xl font-black"
+                        style={{ color: plan.premium ? 'white' : 'var(--text-heading)' }}>
                         ₹{plan.priceInr.toLocaleString()}
                       </span>
-                      <span className={`mb-1.5 text-sm font-bold ${plan.premium ? 'text-green-300' : 'text-slate-400'}`}>
+                      <span className="mb-1.5 text-sm font-bold"
+                        style={{ color: plan.premium ? 'rgba(255,255,255,0.70)' : 'var(--text-subtle)' }}>
                         {plan.period}
                       </span>
                     </>
@@ -115,8 +124,10 @@ const SubscriptionPage: React.FC = () => {
 
                 <ul className="space-y-3 mb-8">
                   {plan.features.map(f => (
-                    <li key={f} className={`flex items-start gap-2 text-sm font-medium ${plan.premium ? 'text-green-100' : 'text-slate-700'}`}>
-                      <span className="mt-0.5 flex-shrink-0" style={{ color: plan.premium ? '#4ade80' : '#16a34a' }}>✓</span>
+                    <li key={f} className="flex items-start gap-2 text-sm font-medium"
+                      style={{ color: plan.premium ? 'rgba(255,255,255,0.90)' : 'var(--text-body)' }}>
+                      <span className="mt-0.5 flex-shrink-0 font-black"
+                        style={{ color: plan.premium ? 'white' : 'var(--color-primary)' }}>✓</span>
                       {f}
                     </li>
                   ))}
@@ -129,8 +140,8 @@ const SubscriptionPage: React.FC = () => {
                   disabled={isCurrent || loading}
                   className="flex w-full items-center justify-center rounded-full py-3.5 text-sm font-black transition disabled:opacity-60 disabled:cursor-default"
                   style={plan.premium
-                    ? { background: 'linear-gradient(135deg,#4ade80,#22c55e)', color: '#052e16' }
-                    : { background: 'linear-gradient(135deg,#16a34a,#059669)', color: 'white' }}>
+                    ? { background: 'white', color: 'var(--color-primary-text)' }
+                    : { background: 'var(--color-gradient)', color: 'white' }}>
                   {isCurrent ? '✓ Current Plan' : plan.cta}
                 </motion.button>
               </motion.div>

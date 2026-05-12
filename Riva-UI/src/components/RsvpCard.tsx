@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { submitRsvp, type SubmitRsvpRequest } from '../api/rsvp';
 
@@ -19,7 +19,6 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
   const [step,       setStep]       = useState<'choose' | 'form' | 'done'>('choose');
   const [status,     setStatus]     = useState<RsvpStatus>('Accepted');
   const [guestName,  setGuestName]  = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
   const [guestCount, setGuestCount] = useState(1);
   const [message,    setMessage]    = useState('');
   const [loading,    setLoading]    = useState(false);
@@ -37,7 +36,6 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
     try {
       await submitRsvp(slug, {
         guestName: guestName.trim(),
-        guestEmail: guestEmail.trim() || undefined,
         status,
         guestCount,
         message: message.trim() || undefined,
@@ -84,7 +82,7 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
                     whileTap={{ scale: 0.97 }}
                     onClick={() => handleChoose(s)}
                     className={`flex w-full items-center gap-3 rounded-2xl px-5 py-3.5 text-left font-black text-white transition shadow-lg ${cfg.glow}`}
-                    style={{ background: s === 'Accepted' ? 'linear-gradient(135deg,#16a34a,#059669)'
+                    style={{ background: s === 'Accepted' ? 'var(--color-gradient)'
                            : s === 'Maybe' ? 'linear-gradient(135deg,#d97706,#b45309)'
                            : 'linear-gradient(135deg,#dc2626,#b91c1c)' }}
                   >
@@ -106,7 +104,7 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
                   <button type="button" onClick={() => setStep('choose')}
                     className="text-white/60 hover:text-white text-sm transition">← Back</button>
                   <span className="rounded-full px-3 py-1 text-xs font-black text-white"
-                    style={{ background: status === 'Accepted' ? '#16a34a' : status === 'Maybe' ? '#d97706' : '#dc2626' }}>
+                    style={{ background: status === 'Accepted' ? 'var(--color-primary)' : status === 'Maybe' ? '#d97706' : '#dc2626' }}>
                     {statusConfig[status].emoji} {status}
                   </span>
                 </div>
@@ -118,10 +116,6 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
                 <input required placeholder="Your Name *"
                   value={guestName} onChange={e => setGuestName(e.target.value)}
                   className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition" />
-
-                <input type="email" placeholder="Email (optional)"
-                  value={guestEmail} onChange={e => setGuestEmail(e.target.value)}
-                  className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none focus:border-white/50 transition" />
 
                 {status === 'Accepted' && (
                   <div className="flex items-center gap-3">
@@ -143,7 +137,7 @@ const RsvpCard: React.FC<Props> = ({ slug, hostName }) => {
                 <motion.button type="submit" disabled={loading || !guestName.trim()}
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                   className="w-full rounded-2xl py-3.5 font-black text-white disabled:opacity-50 transition"
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                  style={{ background: 'var(--color-gradient)' }}>
                   {loading ? '⏳ Submitting…' : `${statusConfig[status].emoji} Confirm RSVP`}
                 </motion.button>
               </motion.form>

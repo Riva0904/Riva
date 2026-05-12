@@ -23,8 +23,17 @@ export async function register(req: RegisterRequest): Promise<RegisterResponse> 
   return apiFetch<RegisterResponse>('auth/register', { method: 'POST', body: JSON.stringify(req) });
 }
 
-export async function verifyOtp(req: VerifyOtpRequest): Promise<{ message: string }> {
-  return apiFetch('auth/verify-otp', { method: 'POST', body: JSON.stringify(req) });
+export async function verifyOtp(req: VerifyOtpRequest): Promise<{ message: string; token?: string; username?: string; email?: string; role?: string }> {
+  const res = await apiFetch<{ message: string; token?: string; username?: string; email?: string; role?: string }>(
+    'auth/verify-otp', { method: 'POST', body: JSON.stringify(req) }
+  );
+  // Auto-login: store token if backend returned one
+  if (res.token) {
+    setAuthToken(res.token);
+    if (res.username) localStorage.setItem('riva_username', res.username);
+    if (res.email)    localStorage.setItem('riva_email',    res.email);
+  }
+  return res;
 }
 
 export async function resendOtp(email: string): Promise<{ message: string }> {

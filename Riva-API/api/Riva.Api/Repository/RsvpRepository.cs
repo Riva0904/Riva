@@ -68,4 +68,18 @@ public class RsvpRepository : IRsvpRepository
         }
         return list;
     }
+
+    public async Task<bool> ExistsAsync(int invitationId, string guestName)
+    {
+        const string sql = """
+            SELECT COUNT(1) FROM InvitationRsvps
+            WHERE InvitationId = @InvitationId
+              AND LOWER(GuestName) = LOWER(@GuestName)
+            """;
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@InvitationId", invitationId);
+        cmd.Parameters.AddWithValue("@GuestName",    guestName.Trim());
+        return (int)(await cmd.ExecuteScalarAsync())! > 0;
+    }
 }

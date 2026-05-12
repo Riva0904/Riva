@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Riva.Domain.Entity;
 using Riva.Dto.Invitation;
 using Riva.Service.Interfaces;
@@ -31,6 +32,7 @@ public class RsvpController : ControllerBase
     /// <summary>Submit an RSVP for a public invitation (no auth required).</summary>
     [HttpPost("{slug}")]
     [AllowAnonymous]
+    [EnableRateLimiting("rsvp")]
     public async Task<IActionResult> Submit(string slug, [FromBody] SubmitRsvpRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.GuestName))
@@ -57,6 +59,10 @@ public class RsvpController : ControllerBase
             RespondedAt  = DateTime.UtcNow
         };
 
+        // Prevent duplicate RSVP from same guest name
+        if (await _rsvps.ExistsAsync(invitation.InvitationId, req.GuestName.Trim()))
+            return Conflict(new { Message = $"An RSVP from '{req.GuestName}' already exists for this invitation." });
+
         var id = await _rsvps.CreateAsync(rsvp);
 
         // Notify invitation owner — awaited directly, same pattern as OTP emails
@@ -75,6 +81,33 @@ public class RsvpController : ControllerBase
         catch { /* email failure must never break the RSVP response */ }
 
         return Ok(new { RsvpId = id, Message = $"Thank you, {req.GuestName}! Your RSVP has been recorded." });
+    }
+
+    /// <summary>Download RSVP responses as CSV.</summary>
+    [HttpGet("{invitationId:int}/export")]
+    [Authorize]
+    public async Task<IActionResult> ExportCsv(int invitationId)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
+                     ?? throw new UnauthorizedAccessException());
+
+        var invitation = await _invitations.GetByIdAsync(invitationId);
+        if (invitation is null || invitation.UserId != userId)
+            return NotFound(new { Message = "Invitation not found." });
+
+        var rsvps = await _rsvps.GetByInvitationIdAsync(invitationId);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Name,Status,Guests,Message,Responded At");
+        foreach (var r in rsvps)
+        {
+            var msg = (r.Message ?? "").Replace("\"", "\"\"");
+            sb.AppendLine($"\"{r.GuestName}\",{r.Status},{r.GuestCount},\"{msg}\",{r.RespondedAt:yyyy-MM-dd HH:mm}");
+        }
+
+        var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var filename = $"rsvp-{invitation.Title.Replace(" ", "-")}-{DateTime.UtcNow:yyyyMMdd}.csv";
+        return File(bytes, "text/csv", filename);
     }
 
     /// <summary>Get RSVP summary for a host's invitation.</summary>

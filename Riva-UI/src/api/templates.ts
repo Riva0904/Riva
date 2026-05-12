@@ -62,3 +62,17 @@ export async function addTemplate(payload: AddTemplatePayload): Promise<{ templa
 export async function updateTemplateStatus(id: number, status: 'Published' | 'Draft' | 'Archived'): Promise<{ message: string }> {
   return apiFetch(`template/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 }
+
+export async function uploadTemplateImage(file: File): Promise<{ imageUrl: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  const token = localStorage.getItem('riva_token');
+  const res = await fetch(`${import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api'}/template/upload-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || 'Upload failed');
+  return { imageUrl: data.imageUrl };
+}

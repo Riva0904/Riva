@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getTemplates, type TemplateListItem } from '../../../api/templates';
@@ -58,6 +58,7 @@ const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) 
   const [categories,  setCategories]  = useState<CategoryDto[]>([]);
   const [activeCat,   setActiveCat]   = useState<number | undefined>();
   const [filter,      setFilter]      = useState<'all' | 'free' | 'paid'>('all');
+  const [sort,        setSort]        = useState<'newest' | 'free-first' | 'paid-first'>('newest');
   const [search,      setSearch]      = useState('');
   const [loading,     setLoading]     = useState(true);
   const [preview,     setPreview]     = useState<TemplateListItem | null>(null);
@@ -76,13 +77,18 @@ const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) 
     }).finally(() => setLoading(false));
   }, [activeCat, filter]);
 
-  const displayed = useMemo(() =>
-    search.trim()
+  const displayed = useMemo(() => {
+    let list = search.trim()
       ? templates.filter(t =>
           t.name.toLowerCase().includes(search.toLowerCase()) ||
           t.categoryName?.toLowerCase().includes(search.toLowerCase()))
-      : templates,
-    [templates, search]);
+      : [...templates];
+
+    if (sort === 'newest')     list.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+    if (sort === 'free-first') list.sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
+    if (sort === 'paid-first') list.sort((a, b) => Number(b.isPaid) - Number(a.isPaid));
+    return list;
+  }, [templates, search, sort]);
 
   const hasFullAccess = subscriptionPlan === 'Premium' || subscriptionPlan === 'Business';
 
@@ -137,24 +143,32 @@ const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) 
           <button onClick={() => setActiveCat(undefined)}
             className={`rounded-full px-4 py-1.5 text-sm font-black transition ${!activeCat
               ? 'text-white shadow-sm' : 'border-2 border-slate-200 text-slate-600 hover:border-green-300'}`}
-            style={!activeCat ? { background: 'linear-gradient(135deg,#16a34a,#059669)' } : {}}>
+            style={!activeCat ? { background: 'var(--color-gradient)' } : {}}>
             All
           </button>
           {categories.map(c => (
             <button key={c.categoryId} onClick={() => setActiveCat(c.categoryId)}
               className={`rounded-full px-4 py-1.5 text-sm font-black transition ${activeCat === c.categoryId
                 ? 'text-white shadow-sm' : 'border-2 border-slate-200 text-slate-600 hover:border-green-300'}`}
-              style={activeCat === c.categoryId ? { background: 'linear-gradient(135deg,#16a34a,#059669)' } : {}}>
+              style={activeCat === c.categoryId ? { background: 'var(--color-gradient)' } : {}}>
               {emojiFor(c.name)} {c.name}
             </button>
           ))}
-          <div className="ml-auto tab-switcher" style={{ marginBottom: 0, width: 'auto', padding: '2px' }}>
-            {(['all', 'free', 'paid'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`tab-btn capitalize text-xs px-3 ${filter === f ? 'active' : ''}`}>
-                {f}
-              </button>
-            ))}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="tab-switcher" style={{ marginBottom: 0, width: 'auto', padding: '2px' }}>
+              {(['all', 'free', 'paid'] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`tab-btn capitalize text-xs px-3 ${filter === f ? 'active' : ''}`}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <select value={sort} onChange={e => setSort(e.target.value as typeof sort)}
+              className="rounded-xl border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 outline-none focus:border-green-400 transition cursor-pointer">
+              <option value="newest">Newest</option>
+              <option value="free-first">Free First</option>
+              <option value="paid-first">Paid First</option>
+            </select>
           </div>
         </div>
       </div>
@@ -194,7 +208,7 @@ const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) 
                     className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition duration-700" />
                 ) : (
                   <div className="flex items-center justify-center h-full text-5xl"
-                    style={{ background: 'linear-gradient(135deg,#dcfce7,#bbf7d0)' }}>
+                    style={{ background: 'rgba(var(--color-primary-rgb),0.08)' }}>
                     {emojiFor(t.categoryName)}
                   </div>
                 )}
@@ -252,7 +266,7 @@ const UserTemplateGallery: React.FC<Props> = ({ subscriptionPlan = 'Starter' }) 
                     alt={preview.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex items-center justify-center h-full text-7xl"
-                    style={{ background: 'linear-gradient(135deg,#dcfce7,#bbf7d0)' }}>
+                    style={{ background: 'rgba(var(--color-primary-rgb),0.08)' }}>
                     {emojiFor(preview.categoryName)}
                   </div>
                 )}

@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { login, register, logout, getStoredRole } from '../../api/auth';
+﻿import React, { useEffect, useRef, useState } from 'react';
+import { login, register, logout, verifyOtp, resendOtp, getStoredRole } from '../../api/auth';
 import { getUserSession, type UserSession } from '../../api/analysis';
 import { getUserProfile, updateProfile, uploadProfileImage, type UserProfile } from '../../api/user';
 import { getMyInvitations, type InvitationSummary } from '../../api/invitation';
-import { getRsvpSummary, type RsvpSummary, type RsvpDto } from '../../api/rsvp';
+import { getRsvpSummary, exportRsvpCsv, type RsvpSummary, type RsvpDto } from '../../api/rsvp';
 import { getTemplates } from '../../api/templates';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserTemplateGallery, { type WishlistItem } from './components/UserTemplateGallery';
@@ -33,6 +33,9 @@ const UserDashboard: React.FC = () => {
   const [session,    setSession]    = useState<UserSession | null>(null);
   const [tab,        setTab]        = useState<Tab>('profile');
   const [mode,       setMode]       = useState<AuthMode>('login');
+  const [authStep,   setAuthStep]   = useState<'form' | 'otp'>('form');
+  const [otp,        setOtp]        = useState('');
+  const [otpEmail,   setOtpEmail]   = useState('');
 
   // Auth form
   const [eu, setEu] = useState('');
@@ -118,10 +121,32 @@ const UserDashboard: React.FC = () => {
     e.preventDefault(); setError(null); setBusy(true);
     try {
       const res = await register({ username: un, email: em, password: pw });
-      setInfo(res.message + ' — Please login.');
-      setMode('login'); setUn(''); setEm(''); setPw('');
+      setOtpEmail(em);
+      setInfo(res.message);
+      setAuthStep('otp');
     } catch (x: unknown) { setError(x instanceof Error ? x.message : 'Registration failed'); }
     finally { setBusy(false); }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(null); setBusy(true);
+    try {
+      const res = await verifyOtp({ email: otpEmail, otpCode: otp });
+      if (res.token) {
+        // Auto-login: token already stored by verifyOtp in auth.ts
+        setIsLoggedIn(true);
+      } else {
+        setInfo('Account verified! Please sign in.');
+        setAuthStep('form'); setMode('login'); setOtp('');
+      }
+    } catch (x: unknown) { setError(x instanceof Error ? x.message : 'Verification failed'); }
+    finally { setBusy(false); }
+  };
+
+  const handleResendOtp = async () => {
+    setError(null);
+    try { await resendOtp(otpEmail); setInfo('New OTP sent! Check your email.'); }
+    catch (x: unknown) { setError(x instanceof Error ? x.message : 'Failed to resend'); }
   };
 
   const handleLogout = () => { logout(); setIsLoggedIn(false); setSession(null); setProfile(null); setInvitations([]); };
@@ -186,17 +211,45 @@ const UserDashboard: React.FC = () => {
             <p className="text-sm text-green-100 mt-1">Create beautiful digital invitations</p>
           </div>
           <div className="p-8">
-            <div className="tab-switcher">
-              {(['login', 'register'] as AuthMode[]).map(m => (
-                <button key={m} onClick={() => { setMode(m); setError(null); setInfo(null); }}
-                  className={`tab-btn ${mode === m ? 'active' : ''}`}>
-                  {m === 'login' ? '🔐 Login' : '✨ Register'}
-                </button>
-              ))}
-            </div>
+            {authStep === 'form' && (
+              <div className="tab-switcher">
+                {(['login', 'register'] as AuthMode[]).map(m => (
+                  <button key={m} onClick={() => { setMode(m); setError(null); setInfo(null); }}
+                    className={`tab-btn ${mode === m ? 'active' : ''}`}>
+                    {m === 'login' ? '🔐 Login' : '✨ Register'}
+                  </button>
+                ))}
+              </div>
+            )}
             {error && <div className="alert-error"><span>⚠️</span><span>{error}</span></div>}
             {info  && <div className="alert-success"><span>✅</span><span>{info}</span></div>}
-            {mode === 'login' ? (
+
+            {/* OTP verification step */}
+            {authStep === 'otp' ? (
+              <div>
+                <div className="mb-5 text-center">
+                  <div className="text-4xl mb-2">📧</div>
+                  <p className="text-sm text-slate-600">OTP sent to <strong>{otpEmail}</strong></p>
+                </div>
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div>
+                    <label className={al}>Enter 6-digit OTP</label>
+                    <input type="text" maxLength={6} className="input-green text-center text-xl tracking-widest font-black"
+                      value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000" required />
+                    <p className="mt-1 text-center text-xs text-slate-400">⏱ Expires in 10 minutes</p>
+                  </div>
+                  <button type="submit" disabled={busy || otp.length !== 6} className="btn-green">
+                    {busy ? '⏳ Verifying…' : '✓ Verify & Enter Dashboard →'}
+                  </button>
+                </form>
+                <div className="mt-4 flex items-center justify-between text-xs">
+                  <button onClick={() => { setAuthStep('form'); setOtp(''); setError(null); }}
+                    className="text-slate-400 hover:text-slate-700 font-bold transition">← Back</button>
+                  <button onClick={handleResendOtp} className="font-black text-green hover:underline">Resend OTP</button>
+                </div>
+              </div>
+            ) : mode === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div><label className={al}>Email or Username</label>
                   <input className="input-green" value={eu} onChange={e=>setEu(e.target.value)} required placeholder="Enter email or username" /></div>
@@ -260,7 +313,7 @@ const UserDashboard: React.FC = () => {
               onClick={e => e.stopPropagation()}>
 
               {/* Modal header */}
-              <div style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }} className="p-5 flex items-center justify-between flex-shrink-0">
+              <div style={{ background: 'var(--color-gradient)' }} className="p-5 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="text-lg font-black text-white">📊 RSVP Responses</h3>
                   <p className="text-sm text-green-200 mt-0.5 truncate">{rsvpModal.inv.title}</p>
@@ -297,7 +350,7 @@ const UserDashboard: React.FC = () => {
                       <div className="flex items-start gap-3">
                         {/* Avatar initial */}
                         <div className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-base font-black text-white"
-                          style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                          style={{ background: 'var(--color-gradient)' }}>
                           {r.guestName.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -392,7 +445,7 @@ const UserDashboard: React.FC = () => {
                   <motion.div whileHover={{ y: -2 }} className="rounded-2xl overflow-hidden border-2 border-green-200">
 
                     {/* Green header with avatar */}
-                    <div style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }} className="p-5">
+                    <div style={{ background: 'var(--color-gradient)' }} className="p-5">
                       <div className="flex items-center gap-4">
                         <div className="relative flex-shrink-0">
                           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/25 text-2xl font-black text-white shadow overflow-hidden">
@@ -404,7 +457,7 @@ const UserDashboard: React.FC = () => {
                           <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
                             onClick={() => fileRef.current?.click()} disabled={uploading}
                             className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-white shadow text-[10px]"
-                            style={{ background: uploading ? '#86efac' : '#15803d' }}>
+                            style={{ background: uploading ? 'rgba(var(--color-primary-rgb),0.45)' : 'var(--color-primary-text)' }}>
                             {uploading ? '⏳' : '📷'}
                           </motion.button>
                           <input ref={fileRef} type="file" className="hidden" accept="image/*"
@@ -641,7 +694,7 @@ const UserDashboard: React.FC = () => {
                                         {rsvp.responses.filter(r => r.message?.trim()).slice(0, 2).map(r => (
                                           <div key={r.rsvpId} className="mt-2 rounded-xl bg-slate-50 p-2.5 flex items-start gap-2">
                                             <div className="flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-xs font-black text-white"
-                                              style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                                              style={{ background: 'var(--color-gradient)' }}>
                                               {r.guestName.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -656,12 +709,19 @@ const UserDashboard: React.FC = () => {
                                           </div>
                                         ))}
 
-                                        {/* View all button */}
+                                        {/* View all + export buttons */}
                                         {rsvp.totalResponses > 0 && (
-                                          <button onClick={() => openRsvpModal(inv)}
-                                            className="mt-2 w-full rounded-xl border-2 border-green-200 bg-white py-1.5 text-xs font-black text-green-700 hover:bg-green-50 transition">
-                                            📩 View All Responses →
-                                          </button>
+                                          <div className="mt-2 flex gap-1.5">
+                                            <button onClick={() => openRsvpModal(inv)}
+                                              className="flex-1 rounded-xl border-2 border-green-200 bg-white py-1.5 text-xs font-black text-green-700 hover:bg-green-50 transition">
+                                              📩 View All →
+                                            </button>
+                                            <button onClick={() => exportRsvpCsv(inv.invitationId, inv.title).catch(() => {})}
+                                              className="rounded-xl border-2 border-slate-200 bg-white px-2.5 py-1.5 text-xs font-black text-slate-600 hover:border-green-300 hover:text-green-700 transition"
+                                              title="Download as CSV">
+                                              ⬇️ CSV
+                                            </button>
+                                          </div>
                                         )}
                                       </motion.div>
                                     )}

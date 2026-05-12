@@ -2,12 +2,37 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Digital Invitation</title>
+
+    <!-- Primary Meta -->
+    <title>Riva — Beautiful Digital Invitations</title>
+    <meta name="description" content="Create stunning digital invitations with animated themes, real-time RSVP tracking, and one-click sharing. Free to start." />
+    <meta name="keywords" content="digital invitation, online invite, RSVP, wedding invitation, birthday invite, event invitation" />
+    <meta name="theme-color" content="#16a34a" />
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:title"       content="Riva — Beautiful Digital Invitations" />
+    <meta property="og:description" content="Create stunning digital invitations with animated themes and real-time RSVP tracking." />
+    <meta property="og:url"         content="https://riva.app" />
+    <meta property="og:site_name"   content="Riva Invitations" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary" />
+    <meta name="twitter:title"       content="Riva — Beautiful Digital Invitations" />
+    <meta name="twitter:description" content="Create stunning digital invitations with animated themes and real-time RSVP tracking." />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Performance hints -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

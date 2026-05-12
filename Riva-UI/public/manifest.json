@@ -1,0 +1,15 @@
+{
+  "name": "Riva Digital Invitations",
+  "short_name": "Riva",
+  "description": "Create and share beautiful digital invitations with animated RSVP tracking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0fdf4",
+  "theme_color": "#16a34a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["lifestyle", "social"],
+  "lang": "en"
+}

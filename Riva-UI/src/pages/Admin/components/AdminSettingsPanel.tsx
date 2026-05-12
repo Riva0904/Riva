@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { changePassword } from '../../../api/user';
 import { logout, forgotPassword, resetPassword, getStoredEmail } from '../../../api/auth';
+import { getTheme, saveTheme, applyTheme, hexToRgbShades } from '../../../api/settings';
 
-type Section = 'password' | 'account' | 'notifications';
+type Section = 'password' | 'account' | 'notifications' | 'branding';
 
 interface Props { onLogout: () => void; }
 
@@ -96,12 +97,117 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
     flash('Notification preferences saved!');
   };
 
+  // Branding / theme — 50+ gradient presets
+  const PRESETS = [
+    // Greens
+    { name: 'Riva Green',     start: 'var(--color-primary)', end: 'var(--color-secondary)', dir: '135deg'   },
+    { name: 'Emerald',        start: 'var(--color-secondary)', end: '#0d9488', dir: '135deg'   },
+    { name: 'Forest',         start: 'var(--color-primary-text)', end: 'var(--color-primary-text)', dir: '135deg'   },
+    { name: 'Mint',           start: '#10b981', end: 'var(--color-secondary)', dir: 'to right' },
+    { name: 'Jade',           start: '#047857', end: '#065f46', dir: '135deg'   },
+    { name: 'Spring',         start: 'var(--color-primary)', end: 'var(--color-secondary)', dir: 'to right' },
+    { name: 'Meadow',         start: '#84cc16', end: 'var(--color-secondary)', dir: '135deg'   },
+    { name: 'Tropics',        start: '#06b6d4', end: '#10b981', dir: 'to right' },
+    // Blues
+    { name: 'Ocean Blue',     start: '#1e3c72', end: '#2a5298', dir: 'to right'        },
+    { name: 'Sky',            start: '#0ea5e9', end: '#2563eb', dir: '135deg'          },
+    { name: 'Sapphire',       start: '#2563eb', end: '#7c3aed', dir: '135deg'          },
+    { name: 'Deep Sea',       start: '#0c4a6e', end: '#0369a1', dir: 'to bottom right' },
+    { name: 'Arctic',         start: '#38bdf8', end: '#818cf8', dir: 'to right'        },
+    { name: 'Marine',         start: '#164e63', end: '#0e7490', dir: '135deg'          },
+    { name: 'Electric Blue',  start: '#1d4ed8', end: '#06b6d4', dir: 'to right'        },
+    { name: 'Cosmic',         start: '#1e1b4b', end: '#4f46e5', dir: '135deg'          },
+    { name: 'Teal',           start: '#0d9488', end: '#0284c7', dir: 'to right'        },
+    // Purples
+    { name: 'Royal Purple',   start: '#7c3aed', end: '#a855f7', dir: '135deg'   },
+    { name: 'Violet',         start: '#7c3aed', end: '#5b21b6', dir: '135deg'   },
+    { name: 'Lavender',       start: '#a78bfa', end: '#c084fc', dir: 'to right' },
+    { name: 'Indigo Night',   start: '#4f46e5', end: '#7c3aed', dir: '135deg'   },
+    { name: 'Plum',           start: '#86198f', end: '#a21caf', dir: '135deg'   },
+    { name: 'Magenta',        start: '#d946ef', end: '#a855f7', dir: 'to right' },
+    { name: 'Dusk',           start: '#6d28d9', end: '#db2777', dir: '135deg'   },
+    // Reds & Pinks
+    { name: 'Sunset',         start: '#f97316', end: '#dc2626', dir: 'to bottom right' },
+    { name: 'Rose Gold',      start: '#db2777', end: '#f97316', dir: 'to right'        },
+    { name: 'Crimson',        start: '#dc2626', end: '#9f1239', dir: '135deg'          },
+    { name: 'Cherry',         start: '#be123c', end: '#dc2626', dir: 'to right'        },
+    { name: 'Hot Pink',       start: '#f43f5e', end: '#d946ef', dir: 'to right'        },
+    { name: 'Candy',          start: '#ec4899', end: '#f43f5e', dir: '135deg'          },
+    { name: 'Raspberry',      start: '#be185d', end: '#9d174d', dir: '135deg'          },
+    { name: 'Blaze',          start: '#dc2626', end: '#9f1239', dir: 'to bottom right' },
+    { name: 'Volcano',        start: '#dc2626', end: '#f97316', dir: 'to right'        },
+    { name: 'Coral',          start: '#f43f5e', end: '#ec4899', dir: 'to right'        },
+    // Oranges & Yellows
+    { name: 'Amber Gold',     start: '#d97706', end: '#b45309', dir: '135deg'   },
+    { name: 'Amber',          start: '#f59e0b', end: '#d97706', dir: 'to right' },
+    { name: 'Pumpkin',        start: '#ea580c', end: '#d97706', dir: 'to right' },
+    { name: 'Autumn',         start: '#b45309', end: '#92400e', dir: '135deg'   },
+    { name: 'Lemon',          start: '#ca8a04', end: '#d97706', dir: 'to right' },
+    { name: 'Peach',          start: '#fb923c', end: '#f472b6', dir: 'to right' },
+    { name: 'Bronze',         start: '#92400e', end: '#b45309', dir: '135deg'   },
+    // Darks
+    { name: 'Midnight',       start: '#0f172a', end: '#1e40af', dir: '135deg'   },
+    { name: 'Obsidian',       start: '#18181b', end: '#27272a', dir: '135deg'   },
+    { name: 'Slate',          start: '#1e293b', end: '#334155', dir: '135deg'   },
+    { name: 'Steel',          start: '#475569', end: '#334155', dir: '135deg'   },
+    { name: 'Storm',          start: '#1e3a5f', end: '#2d6a9f', dir: '135deg'   },
+    { name: 'Rust',           start: '#9a3412', end: '#c2410c', dir: '135deg'   },
+    { name: 'Moss',           start: '#365314', end: 'var(--color-primary-text)', dir: '135deg'   },
+    // Special
+    { name: 'Turquoise',      start: '#2dd4bf', end: '#34d399', dir: 'to right' },
+    { name: 'Seafoam',        start: '#5eead4', end: '#67e8f9', dir: 'to right' },
+    { name: 'Neon Green',     start: 'var(--color-secondary)', end: '#84cc16', dir: 'to right' },
+    { name: 'Ice',            start: '#bae6fd', end: '#a5b4fc', dir: 'to right' },
+  ];
+  const DIRECTIONS = [
+    { label: '↘ Diagonal',  value: '135deg'          },
+    { label: '→ Right',     value: 'to right'        },
+    { label: '↓ Down',      value: 'to bottom'       },
+    { label: '↗ Diagonal',  value: 'to top right'    },
+    { label: '↙ Diagonal',  value: 'to bottom right' },
+  ];
+  const [colorStart,   setColorStart]  = useState('#16a34a');
+  const [colorEnd,     setColorEnd]    = useState('#059669');
+  const [gradientDir,  setGradientDir] = useState('135deg');
+  const [themeMode,    setThemeMode]   = useState<'light' | 'dark'>('light');
+  const [brandSaving,  setBrandSaving] = useState(false);
+  const [brandLoaded,  setBrandLoaded] = useState(false);
+
+  const liveGradient = `linear-gradient(${gradientDir}, ${colorStart}, ${colorEnd})`;
+
+  const loadBranding = () => {
+    if (brandLoaded) return;
+    getTheme().then(t => {
+      setColorStart(t.colorStart);
+      setColorEnd(t.colorEnd);
+      setGradientDir(t.gradientDir);
+      setThemeMode(t.mode ?? 'light');
+      setBrandLoaded(true);
+    }).catch(() => {});
+  };
+
+  const handleSaveTheme = async () => {
+    if (!colorStart || !colorEnd) { flash('Please select both start and end colors.', false); return; }
+    setBrandSaving(true);
+    try {
+      await saveTheme({ colorStart, colorEnd, gradientDir, mode: themeMode });
+      applyTheme(colorStart, colorEnd, gradientDir, themeMode);
+      flash(`${themeMode === 'dark' ? '🌙 Dark' : '☀️ Light'} theme applied to all users!`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to save theme';
+      flash(msg.includes('401') || msg.toLowerCase().includes('unauthorized')
+        ? 'Not authorized. Make sure you are logged in as Admin.'
+        : msg, false);
+    } finally { setBrandSaving(false); }
+  };
+
   const lbl = "block text-sm font-black text-slate-700 mb-1.5";
 
   const SECTIONS: { id: Section; icon: string; label: string }[] = [
     { id: 'password',      icon: '🔑', label: 'Change Password' },
     { id: 'account',       icon: '👤', label: 'Account' },
     { id: 'notifications', icon: '🔔', label: 'Notifications' },
+    { id: 'branding',      icon: '🎨', label: 'Branding' },
   ];
 
   return (
@@ -130,11 +236,11 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
         <div className="md:col-span-1">
           <nav className="card-green p-3 space-y-1">
             {SECTIONS.map(item => (
-              <button key={item.id} onClick={() => setActive(item.id)}
+              <button key={item.id} onClick={() => { setActive(item.id); if (item.id === 'branding') loadBranding(); }}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-black transition ${
                   active === item.id ? 'text-white' : 'text-slate-600 hover:bg-green-50'
                 }`}
-                style={active === item.id ? { background: 'linear-gradient(135deg,#16a34a,#059669)' } : {}}>
+                style={active === item.id ? { background: 'var(--color-gradient)' } : {}}>
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
               </button>
@@ -344,6 +450,117 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
                 </motion.button>
               </motion.div>
             )}
+            {active === 'branding' && (
+              <motion.div key="branding"
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                className="card-green p-6 space-y-6">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 mb-1">Branding & Gradient</h2>
+                  <p className="text-sm text-slate-500">Set the gradient used across all buttons, headers, and highlights for every user.</p>
+                </div>
+
+                {/* Preset swatches — scrollable */}
+                <div>
+                  <label className={lbl}>50+ Gradient Presets</label>
+                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-100 p-2">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {PRESETS.map(p => {
+                        const isSelected = colorStart === p.start && colorEnd === p.end;
+                        return (
+                          <motion.button key={p.name} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+                            onClick={() => { setColorStart(p.start); setColorEnd(p.end); setGradientDir(p.dir); }}
+                            title={p.name}
+                            className={`relative rounded-lg p-0.5 border-2 transition ${isSelected ? 'border-slate-800 shadow-md' : 'border-transparent hover:border-slate-300'}`}>
+                            <div className="h-8 w-full rounded-md shadow-sm"
+                              style={{ background: `linear-gradient(${p.dir},${p.start},${p.end})` }} />
+                            <p className="text-[9px] font-black text-slate-600 text-center mt-0.5 truncate leading-tight px-0.5">{p.name}</p>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom two-stop picker */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={lbl}>Start Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={colorStart} onChange={e => setColorStart(e.target.value)}
+                        className="h-10 w-10 cursor-pointer rounded-lg border-2 border-slate-200 p-0.5 flex-shrink-0" />
+                      <input type="text" value={colorStart} maxLength={7}
+                        onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) setColorStart(e.target.value); }}
+                        className="input-green font-mono text-sm" placeholder="#1e3c72" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={lbl}>End Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={colorEnd} onChange={e => setColorEnd(e.target.value)}
+                        className="h-10 w-10 cursor-pointer rounded-lg border-2 border-slate-200 p-0.5 flex-shrink-0" />
+                      <input type="text" value={colorEnd} maxLength={7}
+                        onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) setColorEnd(e.target.value); }}
+                        className="input-green font-mono text-sm" placeholder="#2a5298" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Direction */}
+                <div>
+                  <label className={lbl}>Gradient Direction</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {DIRECTIONS.map(d => (
+                      <button key={d.value} onClick={() => setGradientDir(d.value)}
+                        className={`rounded-xl px-3 py-1.5 text-xs font-black border-2 transition ${gradientDir === d.value ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                        style={gradientDir === d.value ? { background: liveGradient } : {}}>
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dark / Light toggle */}
+                <div>
+                  <label className={lbl}>Theme Mode</label>
+                  <div className="flex gap-3 mt-1">
+                    {(['light', 'dark'] as const).map(m => (
+                      <motion.button key={m} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => setThemeMode(m)}
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-black border-2 transition ${themeMode === m ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                        style={themeMode === m ? { background: liveGradient } : {}}>
+                        {m === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live preview */}
+                <div className={`rounded-2xl border-2 border-slate-100 p-4 space-y-3 transition-colors ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Live Preview</p>
+                  <button style={{ background: liveGradient }}
+                    className="w-full rounded-xl py-3 text-sm font-black text-white shadow-lg">
+                    Primary Button
+                  </button>
+                  <div className="h-10 rounded-xl w-full" style={{ background: liveGradient }} />
+                  <div className="flex gap-2">
+                    <span style={{ background: hexToRgbShades(colorStart).light, color: colorStart }}
+                      className="rounded-full px-3 py-1 text-xs font-black">Badge</span>
+                    <span style={{ borderColor: colorStart, color: colorStart }}
+                      className="rounded-full border-2 px-3 py-1 text-xs font-black">Outline</span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono break-all">
+                    {liveGradient}
+                  </p>
+                </div>
+
+                <motion.button onClick={handleSaveTheme} disabled={brandSaving}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  className="btn-green disabled:opacity-50">
+                  {brandSaving ? '⏳ Saving…' : '🎨 Apply Gradient to All Users'}
+                </motion.button>
+              </motion.div>
+            )}
+
           </AnimatePresence>
         </div>
       </div>

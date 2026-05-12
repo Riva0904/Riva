@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { login, adminRegister, logout, getStoredRole, getStoredUsername } from '../../api/auth';
 import { getUserProfile } from '../../api/user';
 import AdminOtpModal from './components/AdminOtpModal';
@@ -69,10 +69,10 @@ const AdminPage: React.FC = () => {
   // ── Auth gate ─────────────────────────────────────────────────────────────────
   if (!loggedIn) return (
     <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(135deg,#14532d,#166534)' }}>
+      style={{ background: 'var(--color-gradient)' }}>
       <div className="card-green w-full max-w-md overflow-hidden">
         <div className="px-8 pt-8 pb-6 text-center"
-          style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+          style={{ background: 'var(--color-gradient)' }}>
           <div className="mb-3 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-3xl font-black text-white shadow-lg">⚡</div>
           <h1 className="text-2xl font-black text-white">Admin Portal</h1>
           <p className="text-sm text-green-100 mt-1">Riva Invitation Platform</p>

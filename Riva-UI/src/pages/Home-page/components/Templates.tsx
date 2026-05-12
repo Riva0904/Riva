@@ -28,10 +28,10 @@ const Templates: React.FC = () => (
         transition={{ duration: 0.55 }}
         className="text-center mb-12">
         <span className="section-label">Modern Templates</span>
-        <h2 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl" style={{ color: 'var(--text-heading)' }}>
           Designed for <span className="gradient-text">celebration moments</span>
         </h2>
-        <p className="mt-3 text-slate-500 max-w-xl mx-auto">
+        <p className="mt-3 max-w-xl mx-auto" style={{ color: 'var(--text-muted)' }}>
           Pick from hundreds of stunning templates and customise them in minutes.
         </p>
       </motion.div>
@@ -63,8 +63,8 @@ const Templates: React.FC = () => (
                 {t.tag}
               </span>
             </div>
-            <div className="flex items-center justify-between px-6 py-5 border-t-2 border-green-100">
-              <span className="text-lg font-black text-slate-900">{t.title}</span>
+            <div className="flex items-center justify-between px-6 py-5 border-t-2" style={{ borderColor: 'var(--border-base)' }}>
+              <span className="text-lg font-black" style={{ color: 'var(--text-heading)' }}>{t.title}</span>
               <motion.a
                 href="/register"
                 whileHover={{ scale: 1.08 }}

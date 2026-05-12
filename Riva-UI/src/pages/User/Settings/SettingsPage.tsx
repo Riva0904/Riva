@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { changePassword } from '../../../api/user';
@@ -148,7 +148,7 @@ const SettingsPage: React.FC = () => {
                       ? 'text-white'
                       : 'text-slate-600 hover:bg-green-50'
                   }`}
-                  style={active === item.id ? { background: 'linear-gradient(135deg,#16a34a,#059669)' } : {}}>
+                  style={active === item.id ? { background: 'var(--color-gradient)' } : {}}>
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                 </button>

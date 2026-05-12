@@ -16,13 +16,15 @@ namespace Riva.Api.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
-    private readonly IMediator _mediator;
+    private readonly IMediator           _mediator;
     private readonly IMediaUploadService _upload;
+    private readonly IEmailService       _email;
 
-    public UsersController(IMediator mediator, IMediaUploadService upload)
+    public UsersController(IMediator mediator, IMediaUploadService upload, IEmailService email)
     {
         _mediator = mediator;
         _upload   = upload;
+        _email    = email;
     }
 
     // ── Current user ──────────────────────────────────────────────────────────
@@ -83,6 +85,16 @@ public class UsersController : ControllerBase
             CurrentPassword = req.CurrentPassword,
             NewPassword     = req.NewPassword,
         });
+
+        // Security alert — email and username both available from JWT claims
+        try
+        {
+            var email    = User.FindFirstValue(ClaimTypes.Email)    ?? "";
+            var username = User.FindFirstValue(ClaimTypes.Name)     ?? email;
+            await _email.SendPasswordChangedAlertAsync(email, username);
+        }
+        catch { }
+
         return Ok(new { Message = "Password changed successfully." });
     }
 

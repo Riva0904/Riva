@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -101,7 +101,7 @@ const PaymentPage: React.FC = () => {
       name:       'Riva Digital Invitations',
       description: mode === 'subscription' ? `${plan?.name} Plan` : templateName,
       image:      '/logo.png',
-      theme:      { color: '#16a34a' },
+      theme:      { color: 'var(--color-primary)' },
       handler: async (response: any) => {
         try {
           await verifyPayment({
@@ -134,7 +134,7 @@ const PaymentPage: React.FC = () => {
         className="card-green w-full max-w-md overflow-hidden">
 
         {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }} className="px-8 pt-8 pb-6">
+        <div style={{ background: 'var(--color-gradient)' }} className="px-8 pt-8 pb-6">
           <div className="flex items-center gap-3 mb-1">
             <div className="logo-icon text-base">R</div>
             <span className="font-black text-white text-lg">Riva</span>
@@ -157,7 +157,7 @@ const PaymentPage: React.FC = () => {
         <div className="flex justify-center gap-2 py-4 bg-green-50 border-b border-green-100">
           {(['details', 'otp', 'pay', 'success'] as Step[]).map((s, i) => (
             <motion.div key={s}
-              animate={{ scale: step === s ? 1.2 : 1, backgroundColor: step === s ? '#16a34a' : ['details','otp','pay','success'].indexOf(step) > i ? '#4ade80' : '#d1fae5' }}
+              animate={{ scale: step === s ? 1.2 : 1, backgroundColor: step === s ? 'var(--color-primary)' : ['details','otp','pay','success'].indexOf(step) > i ? 'var(--color-primary)' : 'rgba(var(--color-primary-rgb),0.08)' }}
               className="h-2.5 w-2.5 rounded-full" />
           ))}
         </div>
@@ -264,7 +264,7 @@ const PaymentPage: React.FC = () => {
                   initial={{ scale: 0 }} animate={{ scale: 1 }}
                   transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
                   className="mx-auto flex h-20 w-20 items-center justify-center rounded-full text-4xl"
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                  style={{ background: 'var(--color-gradient)' }}>
                   🎉
                 </motion.div>
                 <div>

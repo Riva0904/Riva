@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export type AdminTab = 'dashboard' | 'profile' | 'templates' | 'add-template' | 'categories' | 'settings';
@@ -60,10 +60,10 @@ const AdminLayout: React.FC<Props> = ({ tab, setTab, adminName, onLogout, childr
       {/* Logo */}
       <div className="px-5 py-6 border-b border-green-800/30">
         <div className="flex items-center gap-3">
-          <div className="logo-icon text-sm" style={{ background: 'linear-gradient(135deg,#4ade80,#22c55e)', color: '#052e16' }}>R</div>
+          <div className="logo-icon text-sm" style={{ background: 'var(--color-gradient)', color: 'white' }}>R</div>
           <div>
-            <span className="font-black text-white text-base">Riva <span style={{ color: '#4ade80' }}>Admin</span></span>
-            <p className="text-xs mt-0.5" style={{ color: '#86efac' }}>⚡ {adminName}</p>
+            <span className="font-black text-white text-base">Riva <span style={{ color: 'var(--color-primary)' }}>Admin</span></span>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(var(--color-primary-rgb),0.45)' }}>⚡ {adminName}</p>
           </div>
         </div>
       </div>
@@ -80,7 +80,7 @@ const AdminLayout: React.FC<Props> = ({ tab, setTab, adminName, onLogout, childr
                 className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-black transition ${
                   isActive ? 'text-slate-900 shadow' : 'text-green-100 hover:bg-white/10'
                 }`}
-                style={isActive ? { background: 'linear-gradient(135deg,#4ade80,#22c55e)' } : {}}>
+                style={isActive ? { background: 'var(--color-gradient)' } : {}}>
                 <div className="flex items-center gap-3">
                   <span className="text-base">{item.icon}</span>
                   <span>{item.label}</span>
@@ -136,7 +136,7 @@ const AdminLayout: React.FC<Props> = ({ tab, setTab, adminName, onLogout, childr
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 flex-shrink-0 flex-col"
-        style={{ background: 'linear-gradient(180deg,#14532d,#166534)' }}>
+        style={{ background: 'var(--color-gradient)' }}>
         <SidebarContent />
       </aside>
 
@@ -152,7 +152,7 @@ const AdminLayout: React.FC<Props> = ({ tab, setTab, adminName, onLogout, childr
               initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed left-0 top-0 bottom-0 z-50 w-60 flex flex-col md:hidden"
-              style={{ background: 'linear-gradient(180deg,#14532d,#166534)' }}>
+              style={{ background: 'var(--color-gradient)' }}>
               <SidebarContent />
             </motion.aside>
           </>

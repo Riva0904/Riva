@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getUserProfile, updateProfile, uploadProfileImage, type UserProfile } from '../../../api/user';
 
@@ -95,7 +95,7 @@ const AdminProfilePanel: React.FC<{ onNameChange?: (name: string) => void }> = (
               {/* Avatar */}
               <div className="relative flex-shrink-0">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg flex items-center justify-center text-3xl font-black text-white"
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                  style={{ background: 'var(--color-gradient)' }}>
                   {profile.profileImageUrl ? (
                     <img src={profile.profileImageUrl} alt={initials} className="w-full h-full object-cover"
                       onError={() => setProfile(prev => prev ? { ...prev, profileImageUrl: undefined } : prev)} />
@@ -104,7 +104,7 @@ const AdminProfilePanel: React.FC<{ onNameChange?: (name: string) => void }> = (
                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}
                   onClick={() => fileRef.current?.click()} disabled={uploading}
                   className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full text-white text-sm shadow"
-                  style={{ background: uploading ? '#86efac' : 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                  style={{ background: uploading ? 'rgba(var(--color-primary-rgb),0.45)' : 'var(--color-gradient)' }}>
                   {uploading ? '⏳' : '📷'}
                 </motion.button>
                 <input ref={fileRef} type="file" className="hidden" accept="image/*"

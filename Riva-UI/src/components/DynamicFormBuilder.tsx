@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+﻿import React, { useCallback, useRef } from 'react';
 import { fieldId, type SchemaField, type InvitationMedia } from '../api/invitation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -74,8 +74,8 @@ const FieldItem = React.memo(function FieldItem({
       {field.type === 'color' && (
         <div className="flex items-center gap-3">
           <input type="color" className="h-10 w-16 rounded-lg border-2 border-slate-200 cursor-pointer"
-            defaultValue={defaultVal || '#16a34a'} onChange={e => notify(e.target.value)} />
-          <span className="text-sm text-slate-500 font-mono">{defaultVal || '#16a34a'}</span>
+            defaultValue={defaultVal || 'var(--color-primary)'} onChange={e => notify(e.target.value)} />
+          <span className="text-sm text-slate-500 font-mono">{defaultVal || 'var(--color-primary)'}</span>
         </div>
       )}
 

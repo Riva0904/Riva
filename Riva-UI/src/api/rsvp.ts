@@ -39,6 +39,21 @@ export async function submitRsvp(slug: string, req: SubmitRsvpRequest): Promise<
   return data;
 }
 
+export async function exportRsvpCsv(invitationId: number, title: string): Promise<void> {
+  const token = localStorage.getItem('riva_token');
+  const res = await fetch(`${API_BASE}/rsvp/${invitationId}/export`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Export failed');
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `rsvp-${title}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function getRsvpSummary(invitationId: number): Promise<RsvpSummary> {
   const token = localStorage.getItem('riva_token');
   const res = await fetch(`${API_BASE}/rsvp/${invitationId}`, {

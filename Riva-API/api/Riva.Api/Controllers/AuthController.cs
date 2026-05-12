@@ -1,7 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Riva.Dto.Auth;
 using Riva.Service.Command.Auth;
+using Riva.Service.Interfaces;
+using Riva.Service.Repository;
 
 namespace Riva.Api.Controllers;
 
@@ -9,26 +13,84 @@ namespace Riva.Api.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IMediator _mediator;
-    private readonly IConfiguration _config;
+    private readonly IMediator       _mediator;
+    private readonly IConfiguration  _config;
+    private readonly IEmailService   _email;
+    private readonly IMemoryCache    _cache;
+    private readonly IUserRepository _users;
+    private readonly IJwtService     _jwt;
 
-    public AuthController(IMediator mediator, IConfiguration config)
+    private const int MaxFailedAttempts = 5;
+    private const int LockoutMinutes    = 30;
+
+    public AuthController(IMediator mediator, IConfiguration config,
+        IEmailService email, IMemoryCache cache, IUserRepository users, IJwtService jwt)
     {
         _mediator = mediator;
-        _config = config;
+        _config   = config;
+        _email    = email;
+        _cache    = cache;
+        _users    = users;
+        _jwt      = jwt;
     }
+
+    private string LockoutKey(string id) => $"lockout:{id}";
+    private string FailKey(string id)    => $"fails:{id}";
 
     // ── User Auth ─────────────────────────────────────────────────────
 
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var response = await _mediator.Send(new LoginCommand
+        var id = request.EmailOrUsername?.ToLowerInvariant() ?? "";
+
+        // Check lockout
+        if (_cache.TryGetValue(LockoutKey(id), out _))
+            return StatusCode(423, new { Message = $"Account locked due to too many failed attempts. Try again in {LockoutMinutes} minutes." });
+
+        try
         {
-            EmailOrUsername = request.EmailOrUsername,
-            Password = request.Password
-        });
-        return Ok(response);
+            var response = await _mediator.Send(new LoginCommand
+            {
+                EmailOrUsername = request.EmailOrUsername,
+                Password        = request.Password
+            });
+
+            // Reset failed attempts on success
+            _cache.Remove(FailKey(id));
+
+            // Security alert email
+            try
+            {
+                var settingsLink = $"{_config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173"}/settings";
+                var loginTime    = DateTime.UtcNow.ToString("dddd, dd MMM yyyy HH:mm 'UTC'");
+                await _email.SendLoginAlertAsync(response.Email, response.Username, loginTime, settingsLink);
+            }
+            catch { }
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Increment failed attempts
+            var fails = _cache.GetOrCreate(FailKey(id), e =>
+            {
+                e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(LockoutMinutes);
+                return 0;
+            });
+            fails++;
+            _cache.Set(FailKey(id), fails, TimeSpan.FromMinutes(LockoutMinutes));
+
+            if (fails >= MaxFailedAttempts)
+            {
+                _cache.Set(LockoutKey(id), true, TimeSpan.FromMinutes(LockoutMinutes));
+                _cache.Remove(FailKey(id));
+                return StatusCode(423, new { Message = $"Account locked after {MaxFailedAttempts} failed attempts. Try again in {LockoutMinutes} minutes." });
+            }
+
+            return Unauthorized(new { Message = ex.Message, AttemptsRemaining = MaxFailedAttempts - fails });
+        }
     }
 
     [HttpPost("register")]
@@ -48,10 +110,41 @@ public class AuthController : ControllerBase
     {
         await _mediator.Send(new VerifyAdminOtpCommand
         {
-            Email = request.Email,
+            Email   = request.Email,
             OtpCode = request.OtpCode
         });
-        return Ok(new { Message = "Account verified! You can now log in." });
+
+        // Fetch the verified user and generate token for auto-login
+        var user = await _users.GetByEmailAsync(request.Email);
+        if (user is null)
+            return Ok(new { Message = "Account verified! You can now log in." });
+
+        var token = _jwt.GenerateToken(user);
+
+        // Send welcome + admin notification emails (non-blocking)
+        try
+        {
+            var name        = user.DisplayName ?? user.Username;
+            var frontendUrl = _config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+            var adminEmail  = _config["App:AdminNotifyEmail"] ?? _config["Email:FromAddress"] ?? "";
+            var joinedAt    = DateTime.UtcNow.ToString("dddd, dd MMM yyyy HH:mm 'UTC'");
+
+            await _email.SendWelcomeEmailAsync(request.Email, name, $"{frontendUrl}/dashboard");
+
+            if (!string.IsNullOrWhiteSpace(adminEmail))
+                await _email.SendNewUserAlertAsync(adminEmail, user.Username, request.Email, joinedAt);
+        }
+        catch { }
+
+        // Return token so frontend can auto-login
+        return Ok(new
+        {
+            Message  = "Account verified! Welcome to Riva 🎉",
+            Token    = token,
+            Username = user.Username,
+            Email    = user.Email,
+            Role     = user.Role
+        });
     }
 
     [HttpPost("resend-otp")]
@@ -75,10 +168,15 @@ public class AuthController : ControllerBase
     {
         await _mediator.Send(new ResetPasswordCommand
         {
-            Email = request.Email,
-            OtpCode = request.OtpCode,
+            Email       = request.Email,
+            OtpCode     = request.OtpCode,
             NewPassword = request.NewPassword
         });
+
+        // Security alert — notify user their password was changed
+        try { await _email.SendPasswordChangedAlertAsync(request.Email, request.Email); }
+        catch { }
+
         return Ok(new { Message = "Password reset successfully. You can now log in." });
     }
 

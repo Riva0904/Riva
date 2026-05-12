@@ -32,8 +32,9 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     setError(null); setBusy(true);
     try {
-      await verifyOtp({ email, otpCode: otp });
-      window.location.href = '/login';
+      const res = await verifyOtp({ email, otpCode: otp });
+      // If token returned, auto-login → go straight to dashboard
+      window.location.href = res.token ? '/dashboard' : '/login';
     } catch (x: unknown) { setError(x instanceof Error ? x.message : 'Verification failed'); }
     finally { setBusy(false); }
   };
@@ -127,7 +128,7 @@ const RegisterPage: React.FC = () => {
                     <p className="mt-2 text-center text-xs text-slate-400">⏱ OTP expires in 10 minutes</p>
                   </div>
                   <button type="submit" disabled={busy || otp.length !== 6} className="btn-green">
-                    {busy ? '⏳ Verifying...' : '✓ Verify & Go to Login →'}
+                    {busy ? '⏳ Verifying...' : '✓ Verify & Go to Dashboard →'}
                   </button>
                 </form>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { getStoredAuthToken } from '../../../api/client';
 import { getStoredRole, getStoredUsername } from '../../../api/auth';
@@ -49,7 +49,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
             <motion.a
               key={label}
               href={href}
-              whileHover={{ y: -2, color: '#16a34a' }}
+              whileHover={{ y: -2, color: 'var(--color-primary)' }}
               transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               className="navbar-link nav-link px-4 py-2 rounded-xl">
               {label}
@@ -72,12 +72,12 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
 
               <motion.a
                 href="/dashboard"
-                whileHover={{ scale: 1.04, borderColor: '#16a34a' }}
+                whileHover={{ scale: 1.04, borderColor: 'var(--color-primary)' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 18 }}
                 className="flex items-center gap-2.5 rounded-full border-2 border-green-300 bg-white px-3 py-1.5 shadow-sm hover:bg-green-50">
                 <div className="relative h-8 w-8 flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center text-sm font-black text-white"
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+                  style={{ background: 'var(--color-gradient)' }}>
                   {profile?.profileImageUrl ? (
                     <img src={profile.profileImageUrl} alt={initials}
                       className="absolute inset-0 w-full h-full object-cover"

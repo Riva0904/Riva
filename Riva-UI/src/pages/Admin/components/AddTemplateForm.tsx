@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { addTemplate, type AddTemplatePayload } from '../../../api/templates';
+import React, { useEffect, useRef, useState } from 'react';
+import { addTemplate, uploadTemplateImage, type AddTemplatePayload } from '../../../api/templates';
 import { getCategories, type CategoryDto } from '../../../api/categories';
 
 interface Props { onSuccess: () => void; }
@@ -49,6 +49,7 @@ const SAMPLE_SCHEMA = `[
 ]`;
 
 const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
+  const imgRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [form, setForm] = useState<AddTemplatePayload & { description: string; tags: string }>({
     name: '', description: '', categoryId: 0, isPaid: false, price: undefined,
@@ -56,10 +57,22 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
     templateJs: '', schemaJson: SAMPLE_SCHEMA,
     previewImageUrl: '', thumbnailUrl: '', tags: ''
   });
-  const [error,   setError]   = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [tab,     setTab]     = useState<'basic' | 'code' | 'schema'>('basic');
+  const [error,     setError]     = useState<string | null>(null);
+  const [success,   setSuccess]   = useState<string | null>(null);
+  const [loading,   setLoading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [tab,       setTab]       = useState<'basic' | 'code' | 'schema'>('basic');
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const res = await uploadTemplateImage(file);
+      set('thumbnailUrl', res.imageUrl);
+      set('previewImageUrl', res.imageUrl);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Image upload failed');
+    } finally { setUploading(false); }
+  };
 
   useEffect(() => { getCategories().then(setCategories).catch(() => {}); }, []);
 
@@ -138,17 +151,32 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
               placeholder="Brief description shown in the gallery…" />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className={lbl}>Preview Image URL</label>
-              <input className={inp} value={form.previewImageUrl}
-                onChange={e => set('previewImageUrl', e.target.value)} placeholder="https://…" />
+          <div>
+            <label className={lbl}>Template Image</label>
+            <div className="flex items-center gap-4">
+              {/* Preview */}
+              <div className="h-24 w-24 flex-shrink-0 rounded-xl border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center bg-slate-50">
+                {form.thumbnailUrl ? (
+                  <img src={form.thumbnailUrl} alt="preview" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-2xl">🖼️</span>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <button type="button" disabled={uploading}
+                  onClick={() => imgRef.current?.click()}
+                  className="btn-green w-auto px-4 py-2 text-sm" style={{ width: 'auto' }}>
+                  {uploading ? '⏳ Uploading…' : '📷 Upload Image'}
+                </button>
+                <p className="text-xs text-slate-400">JPG, PNG, WebP or GIF — max 10 MB</p>
+                {form.thumbnailUrl && (
+                  <button type="button" onClick={() => { set('thumbnailUrl', ''); set('previewImageUrl', ''); }}
+                    className="text-xs text-red-500 hover:underline">Remove image</button>
+                )}
+              </div>
             </div>
-            <div>
-              <label className={lbl}>Thumbnail URL</label>
-              <input className={inp} value={form.thumbnailUrl}
-                onChange={e => set('thumbnailUrl', e.target.value)} placeholder="https://…" />
-            </div>
+            <input ref={imgRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
           </div>
 
           <div>

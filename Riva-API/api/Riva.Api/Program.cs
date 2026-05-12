@@ -1,6 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Riva.Api.Data;
 using Riva.Api.Middleware;
@@ -11,6 +12,7 @@ using Riva.Service.Interfaces;
 using Riva.Service.Repository;
 using Serilog;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +55,54 @@ builder.Services.AddCors(o => o.AddPolicy("AllowFrontend", p =>
      .AllowAnyHeader()
      .AllowAnyMethod()));
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    // Login: 5 attempts per IP per 15 minutes
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit       = 5,
+                Window            = TimeSpan.FromMinutes(15),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit        = 0
+            }));
+
+    // RSVP: 10 per IP per hour (prevent spam)
+    options.AddPolicy("rsvp", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit       = 10,
+                Window            = TimeSpan.FromHours(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit        = 0
+            }));
+
+    // General API: 200 per IP per minute
+    options.AddPolicy("general", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit       = 200,
+                Window            = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit        = 0
+            }));
+
+    options.RejectionStatusCode = 429;
+    options.OnRejected = async (ctx, _) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json";
+        await ctx.HttpContext.Response.WriteAsync(
+            "{\"message\":\"Too many requests. Please wait and try again.\"}");
+    };
+});
+
 builder.Services.AddScoped<DatabaseConnection>();
 
 builder.Services.AddMediatR(cfg =>
@@ -69,13 +119,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         opt.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? ""))
         };
     });
@@ -95,6 +145,7 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IRsvpRepository, RsvpRepository>();
+builder.Services.AddScoped<IAppSettingsRepository, AppSettingsRepository>();
 
 // ── Template Engine services ──────────────────────────────────────────────────
 builder.Services.AddScoped<IPlaceholderService, PlaceholderService>();
@@ -102,8 +153,9 @@ builder.Services.AddScoped<ISlugGeneratorService, SlugGeneratorService>();
 builder.Services.AddScoped<IHtmlRenderService, HtmlRenderService>();
 builder.Services.AddScoped<IMediaUploadService, MediaUploadService>();
 
-// ── Response caching (Redis-ready: swap AddResponseCaching for AddStackExchangeRedisCache) ──
+// ── Caching ───────────────────────────────────────────────────────────────────
 builder.Services.AddResponseCaching();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
@@ -113,9 +165,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// ── Security Headers ──────────────────────────────────────────────────────────
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    ctx.Response.Headers["X-Frame-Options"]        = "DENY";
+    ctx.Response.Headers["X-XSS-Protection"]       = "1; mode=block";
+    ctx.Response.Headers["Referrer-Policy"]        = "strict-origin-when-cross-origin";
+    ctx.Response.Headers["Permissions-Policy"]     = "camera=(), microphone=(), geolocation=()";
+    await next();
+});
+
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 app.UseHttpsRedirection();
-app.UseStaticFiles();          // serves /wwwroot/uploads/
+app.UseStaticFiles();
 app.UseResponseCaching();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();

@@ -1,5 +1,7 @@
 import './App.scss';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { getTheme, applyTheme } from './api/settings';
 import AppLayout from './AppLayout';
 import HomePage from './pages/Home-page/HomePage';
 import AdminPage from './pages/Admin/AdminPage';
@@ -14,6 +16,13 @@ import PaymentPage from './pages/Payment/PaymentPage';
 import SubscriptionPage from './pages/Subscription/SubscriptionPage';
 
 function App() {
+  // Load and apply admin-configured theme on every page load
+  useEffect(() => {
+    getTheme()
+      .then(t => applyTheme(t.colorStart, t.colorEnd, t.gradientDir, t.mode ?? 'light'))
+      .catch(() => {}); // silently fall back to CSS defaults
+  }, []);
+
   return (
     <Router>
       <Routes>

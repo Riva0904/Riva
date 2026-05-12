@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MobileMenuProps { isOpen: boolean; }
@@ -37,7 +37,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen }) => (
                 key={label}
                 href={href}
                 variants={linkVariants}
-                whileHover={{ x: 6, backgroundColor: '#f0fdf4' }}
+                whileHover={{ x: 6, backgroundColor: 'rgba(var(--color-primary-rgb),0.04)' }}
                 transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 className="navbar-link block rounded-xl px-4 py-3">
                 {label}

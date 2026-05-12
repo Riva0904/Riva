@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getPublicInvitationHtml, getPublicInvitationMeta } from '../../api/invitation';
@@ -22,6 +22,24 @@ const PublicInvitePage: React.FC = () => {
     ]).then(([html, meta]) => {
       setSrcDoc(html);
       if (meta?.title) setTitle(meta.title);
+
+      // Inject Open Graph + social meta tags dynamically
+      const t = meta?.title ?? 'Digital Invitation';
+      document.title = `${t} — Riva Invitations`;
+      const setMeta = (prop: string, content: string, attr = 'property') => {
+        let el = document.querySelector(`meta[${attr}="${prop}"]`) as HTMLMetaElement | null;
+        if (!el) { el = document.createElement('meta'); el.setAttribute(attr, prop); document.head.appendChild(el); }
+        el.content = content;
+      };
+      const url = window.location.href;
+      setMeta('og:type',        'website');
+      setMeta('og:url',         url);
+      setMeta('og:title',       t);
+      setMeta('og:description', `You're invited! Open and RSVP to ${t} on Riva.`);
+      setMeta('og:site_name',   'Riva Invitations');
+      setMeta('twitter:card',   'summary', 'name');
+      setMeta('twitter:title',  t,         'name');
+      setMeta('twitter:description', `You're invited! RSVP to ${t}`, 'name');
     }).catch(() => setError('This invitation was not found or is no longer available.'))
       .finally(() => setLoading(false));
   }, [slug]);
@@ -73,7 +91,7 @@ const PublicInvitePage: React.FC = () => {
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => setShowShare(true)}
             className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black text-white transition"
-            style={{ background: 'linear-gradient(135deg,#16a34a,#059669)' }}>
+            style={{ background: 'var(--color-gradient)' }}>
             🔗 Share
           </motion.button>
         </div>

@@ -28,10 +28,7 @@ const plans = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
+const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.12 } } };
 const cardVariants = {
   hidden: { opacity: 0, y: 40 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } },
@@ -39,16 +36,17 @@ const cardVariants = {
 
 const Pricing: React.FC = () => (
   <section id="pricing" className="px-4 py-20 sm:px-6 lg:px-8"
-    style={{ background: 'linear-gradient(180deg,#ffffff,#f0fdf4)' }}>
+    style={{ background: 'var(--bg-page)' }}>
     <div className="mx-auto max-w-7xl">
 
       <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-16">
         <span className="section-label">Pricing Plans</span>
-        <h2 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl"
+          style={{ color: 'var(--text-heading)' }}>
           Simple pricing, <span className="gradient-text">transparent value</span>
         </h2>
-        <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
+        <p className="mt-4 text-lg max-w-xl mx-auto" style={{ color: 'var(--text-muted)' }}>
           No hidden fees. Cancel any time. Start free — upgrade when you're ready.
         </p>
       </motion.div>
@@ -58,27 +56,38 @@ const Pricing: React.FC = () => (
         {plans.map(p => (
           <motion.div key={p.id} variants={cardVariants}
             whileHover={{ y: -8, transition: { duration: 0.2 } }}
-            className={`price-card rounded-3xl p-8 shadow-xl transition duration-500 ${p.premium ? 'pulse-glow bg-dark-green' : 'bg-white border-2 border-green-100'}`}>
+            className="price-card rounded-3xl p-8 shadow-xl transition duration-500"
+            style={p.premium
+              ? { background: 'var(--color-gradient)', boxShadow: '0 0 40px rgba(var(--color-primary-rgb),0.35)' }
+              : { background: 'var(--bg-card)', border: '2px solid var(--border-base)' }}>
 
             {p.badge && (
               <div className="mb-4 inline-block rounded-full px-3 py-1 text-xs font-black"
-                style={{ background: 'rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                style={p.premium
+                  ? { background: 'rgba(255,255,255,0.25)', color: 'white' }
+                  : { background: 'rgba(var(--color-primary-rgb),0.12)', color: 'var(--color-primary-text)' }}>
                 {p.badge}
               </div>
             )}
 
-            <h3 className={`text-2xl font-black ${p.premium ? 'text-white' : 'text-slate-900'}`}>{p.name}</h3>
-            <p className={`text-sm mt-1 mb-4 ${p.premium ? 'text-green-300' : 'text-slate-500'}`}>{p.desc}</p>
+            <h3 className="text-2xl font-black"
+              style={{ color: p.premium ? 'white' : 'var(--text-heading)' }}>{p.name}</h3>
+            <p className="text-sm mt-1 mb-4"
+              style={{ color: p.premium ? 'rgba(255,255,255,0.80)' : 'var(--text-muted)' }}>{p.desc}</p>
 
             <div className="flex items-end gap-1 mb-6">
-              <span className={`text-5xl font-black ${p.premium ? 'text-white' : 'text-slate-900'}`}>{p.price}</span>
-              <span className={`mb-1.5 text-sm font-bold ${p.premium ? 'text-green-300' : 'text-slate-400'}`}>{p.period}</span>
+              <span className="text-5xl font-black"
+                style={{ color: p.premium ? 'white' : 'var(--text-heading)' }}>{p.price}</span>
+              <span className="mb-1.5 text-sm font-bold"
+                style={{ color: p.premium ? 'rgba(255,255,255,0.70)' : 'var(--text-subtle)' }}>{p.period}</span>
             </div>
 
             <ul className="space-y-3 mb-8">
               {p.features.map(f => (
-                <li key={f} className={`flex items-start gap-2 text-sm font-medium ${p.premium ? 'text-green-100' : 'text-slate-700'}`}>
-                  <span className="mt-0.5 flex-shrink-0 text-base" style={{ color: p.premium ? '#4ade80' : '#16a34a' }}>✓</span>
+                <li key={f} className="flex items-start gap-2 text-sm font-medium"
+                  style={{ color: p.premium ? 'rgba(255,255,255,0.90)' : 'var(--text-body)' }}>
+                  <span className="mt-0.5 flex-shrink-0 text-base font-black"
+                    style={{ color: p.premium ? 'white' : 'var(--color-primary)' }}>✓</span>
                   {f}
                 </li>
               ))}
@@ -87,8 +96,8 @@ const Pricing: React.FC = () => (
             <motion.a href={p.ctaHref()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               className="flex w-full items-center justify-center rounded-full py-3.5 text-sm font-black transition"
               style={p.premium
-                ? { background: 'linear-gradient(135deg,#4ade80,#22c55e)', color: '#052e16' }
-                : { background: 'linear-gradient(135deg,#16a34a,#059669)', color: 'white' }}>
+                ? { background: 'white', color: 'var(--color-primary-text)' }
+                : { background: 'var(--color-gradient)', color: 'white' }}>
               {p.cta}
             </motion.a>
           </motion.div>
@@ -96,7 +105,8 @@ const Pricing: React.FC = () => (
       </motion.div>
 
       <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-        transition={{ delay: 0.5 }} className="mt-10 text-center text-sm text-slate-400">
+        transition={{ delay: 0.5 }} className="mt-10 text-center text-sm"
+        style={{ color: 'var(--text-subtle)' }}>
         All plans include free RSVP tracking, QR codes, and WhatsApp sharing. No credit card required to start.
       </motion.p>
     </div>

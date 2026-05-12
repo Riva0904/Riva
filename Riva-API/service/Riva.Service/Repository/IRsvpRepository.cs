@@ -6,4 +6,5 @@ public interface IRsvpRepository
 {
     Task<int> CreateAsync(InvitationRsvp rsvp);
     Task<List<InvitationRsvp>> GetByInvitationIdAsync(int invitationId);
+    Task<bool> ExistsAsync(int invitationId, string guestName);
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Riva.Dto.Template;
 using Riva.Service.Command.Template;
+using Riva.Service.Interfaces;
 using Riva.Service.Query.Template;
 using System.Security.Claims;
 using Riva.Service.Repository;
@@ -13,13 +14,15 @@ namespace Riva.Api.Controllers;
 [Route("api/template")]
 public class TemplateController : ControllerBase
 {
-    private readonly IMediator _mediator;
+    private readonly IMediator           _mediator;
     private readonly ITemplateRepository _templates;
+    private readonly IMediaUploadService _upload;
 
-    public TemplateController(IMediator mediator, ITemplateRepository templates)
+    public TemplateController(IMediator mediator, ITemplateRepository templates, IMediaUploadService upload)
     {
         _mediator  = mediator;
         _templates = templates;
+        _upload    = upload;
     }
 
     // GET /api/template?categoryId=1&isPaid=false
@@ -101,6 +104,24 @@ public class TemplateController : ControllerBase
     {
         await _mediator.Send(new UpdateTemplateStatusCommand { TemplateId = id, Status = req.Status });
         return Ok(new { Message = $"Template {id} status set to '{req.Status}'." });
+    }
+
+    // POST /api/template/upload-image  [Admin only]
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(10_485_760)]
+    public async Task<IActionResult> UploadImage(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { Message = "No file provided." });
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+        if (!allowed.Contains(file.ContentType))
+            return BadRequest(new { Message = "Only JPG, PNG, WebP, or GIF allowed." });
+
+        await using var stream = file.OpenReadStream();
+        var (imageUrl, _) = await _upload.UploadAsync(stream, file.FileName, file.ContentType, "templates");
+        return Ok(new { ImageUrl = imageUrl });
     }
 
     private int? GetCurrentUserId()
