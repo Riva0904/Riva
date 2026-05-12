@@ -12,8 +12,8 @@ const NAV_LINKS = [
 
 const menuVariants = {
   hidden: { opacity: 0, height: 0 },
-  visible: { opacity: 1, height: 'auto', transition: { duration: 0.25, ease: 'easeOut', staggerChildren: 0.06, delayChildren: 0.05 } },
-  exit:   { opacity: 0, height: 0,     transition: { duration: 0.2,  ease: 'easeIn' } },
+  visible: { opacity: 1, height: 'auto', transition: { duration: 0.25, ease: 'easeOut' as const, staggerChildren: 0.06, delayChildren: 0.05 } },
+  exit:   { opacity: 0, height: 0,     transition: { duration: 0.2,  ease: 'easeIn' as const } },
 };
 
 const linkVariants = {

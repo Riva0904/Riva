@@ -26,6 +26,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    if (response.status === 429) {
+      const seconds = data?.retryAfterSeconds ?? 900;
+      throw new Error(`TOO_MANY_REQUESTS:${seconds}`);
+    }
     const errorMessage = data?.message || data?.error || response.statusText || 'API request failed';
     throw new Error(errorMessage);
   }

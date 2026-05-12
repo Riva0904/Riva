@@ -21,16 +21,20 @@ public class AddTemplateCommandHandler : IRequestHandler<AddTemplateCommand, Add
         var category = await _categoryRepository.GetByIdAsync(request.CategoryId)
             ?? throw new InvalidOperationException($"Category {request.CategoryId} not found.");
 
-        if (request.IsPaid && (request.Price == null || request.Price <= 0))
-            throw new InvalidOperationException("A paid template must have a price greater than zero.");
+        var tier   = request.TierType is "Free" or "Premium" or "Pro" ? request.TierType : "Free";
+        var isPaid = tier != "Free";
+
+        if (isPaid && (request.Price == null || request.Price <= 0))
+            throw new InvalidOperationException("A Premium or Pro template must have a price greater than zero.");
 
         var template = new Riva.Domain.Entity.Template
         {
             Name           = request.Name,
             Description    = request.Description,
             CategoryId     = request.CategoryId,
-            IsPaid         = request.IsPaid,
-            Price          = request.IsPaid ? request.Price : null,
+            TierType       = tier,
+            IsPaid         = isPaid,
+            Price          = isPaid ? request.Price : null,
             TemplateHtml   = request.TemplateHtml,
             TemplateCss    = request.TemplateCss,
             TemplateJs     = request.TemplateJs,

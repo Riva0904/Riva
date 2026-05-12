@@ -25,6 +25,7 @@ public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, List<Us
             Email = user.Email,
             Role = user.Role,
             IsActive = user.IsActive,
+            IsVerified = user.IsVerified,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt,
             LastLoginAt = user.LastLoginAt

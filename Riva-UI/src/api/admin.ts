@@ -3,12 +3,35 @@ import { apiFetch } from './client';
 export interface UserDto {
   id: number;
   username: string;
+  displayName?: string;
   email: string;
   role: string;
   isActive: boolean;
+  isVerified: boolean;
+  profileImageUrl?: string;
   createdAt: string;
   updatedAt?: string;
   lastLoginAt?: string;
+}
+
+export interface PaymentAdminRecord {
+  id: number;
+  userId: number;
+  username: string;
+  email: string;
+  amount: number;
+  currency: string;
+  status: string;
+  razorpayPaymentId?: string;
+  transactionDate: string;
+  completionDate?: string;
+}
+
+export interface AdminPaymentStats {
+  totalAmount: number;
+  totalPayments: number;
+  completedPayments: number;
+  payments: PaymentAdminRecord[];
 }
 
 export const getAllUsers = async (): Promise<UserDto[]> => {
@@ -40,4 +63,8 @@ export const updateUserRole = async (id: number, role: string): Promise<void> =>
     method: 'POST',
     body: JSON.stringify({ id, role })
   });
+};
+
+export const getAdminPaymentStats = async (): Promise<AdminPaymentStats> => {
+  return apiFetch('/payment/admin/stats', { method: 'GET' });
 };

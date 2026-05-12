@@ -25,15 +25,16 @@ public class TemplateController : ControllerBase
         _upload    = upload;
     }
 
-    // GET /api/template?categoryId=1&isPaid=false
+    // GET /api/template?categoryId=1&tierType=Premium
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetAll([FromQuery] int? categoryId, [FromQuery] bool? isPaid)
+    public async Task<IActionResult> GetAll([FromQuery] int? categoryId, [FromQuery] bool? isPaid, [FromQuery] string? tierType)
     {
         var result = await _mediator.Send(new GetTemplatesQuery
         {
             CategoryId = categoryId,
-            IsPaid = isPaid
+            IsPaid     = isPaid,
+            TierType   = tierType,
         });
         return Ok(result);
     }
@@ -62,6 +63,7 @@ public class TemplateController : ControllerBase
             CategoryId      = request.CategoryId,
             IsPaid          = request.IsPaid,
             Price           = request.Price,
+            TierType        = request.TierType,
             TemplateHtml    = request.TemplateHtml,
             TemplateCss     = request.TemplateCss,
             TemplateJs      = request.TemplateJs,
@@ -89,6 +91,7 @@ public class TemplateController : ControllerBase
             CategoryName    = t.CategoryName ?? string.Empty,
             IsPaid          = t.IsPaid,
             Price           = t.Price,
+            TierType        = t.TierType,
             PreviewImageUrl = t.PreviewImageUrl,
             ThumbnailUrl    = t.ThumbnailUrl,
             Status          = t.Status,
@@ -104,6 +107,24 @@ public class TemplateController : ControllerBase
     {
         await _mediator.Send(new UpdateTemplateStatusCommand { TemplateId = id, Status = req.Status });
         return Ok(new { Message = $"Template {id} status set to '{req.Status}'." });
+    }
+
+    // PUT /api/template/{id}  [Admin only]
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateTemplate(int id, [FromBody] UpdateTemplateRequest req)
+    {
+        var existing = await _templates.GetByIdAsync(id);
+        if (existing is null) return NotFound(new { Message = "Template not found." });
+
+        var tier   = req.TierType is "Free" or "Premium" or "Pro" ? req.TierType : "Free";
+        var isPaid = tier != "Free";
+        await _templates.UpdateTemplateAsync(
+            id, req.Name, req.CategoryId, isPaid, isPaid ? req.Price : null,
+            req.TemplateHtml, req.TemplateCss, req.TemplateJs, req.SchemaJson,
+            req.PreviewImageUrl, req.ThumbnailUrl, req.Description, tier);
+
+        return Ok(new { Message = "Template updated successfully." });
     }
 
     // POST /api/template/upload-image  [Admin only]

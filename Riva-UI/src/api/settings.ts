@@ -36,7 +36,7 @@ function parseHex(hex: string): [number, number, number] | null {
 }
 
 /** Apply gradient colors (admin-controlled). Dark/light is user-controlled separately. */
-export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '135deg', mode?: 'light' | 'dark') {
+export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '135deg', _mode?: 'light' | 'dark') {
   const root     = document.documentElement;
   const gradient = `linear-gradient(${gradientDir}, ${colorStart}, ${colorEnd})`;
 

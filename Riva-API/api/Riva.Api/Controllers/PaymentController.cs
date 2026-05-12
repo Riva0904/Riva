@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using Riva.Dto.Payment;
 using Riva.Service.Command.Payment;
+using Riva.Service.Query.Admin;
 
 namespace Riva.Api.Controllers;
 
@@ -93,6 +94,14 @@ public class PaymentController : ControllerBase
         };
 
         var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    [HttpGet("/api/payment/admin/stats")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAdminStats()
+    {
+        var result = await _mediator.Send(new GetAdminPaymentsQuery());
         return Ok(result);
     }
 }

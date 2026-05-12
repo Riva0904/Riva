@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import {
   createInvitation, updateInvitation, publishInvitation,
-  uploadMedia, getInvitationById, fieldId,
+  uploadMedia, getInvitationById,
   type SchemaField, type InvitationMedia,
 } from '../../api/invitation';
 import DynamicFormBuilder from '../../components/DynamicFormBuilder';

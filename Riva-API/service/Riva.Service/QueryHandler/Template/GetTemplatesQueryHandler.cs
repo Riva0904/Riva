@@ -16,7 +16,7 @@ public class GetTemplatesQueryHandler : IRequestHandler<GetTemplatesQuery, Templ
 
     public async Task<TemplatesListResponse> Handle(GetTemplatesQuery request, CancellationToken cancellationToken)
     {
-        var templates = await _templateRepository.GetAllAsync(request.CategoryId, request.IsPaid);
+        var templates = await _templateRepository.GetAllAsync(request.CategoryId, request.IsPaid, request.TierType);
 
         var items = templates.Select(t => new TemplateListItemDto
         {
@@ -27,6 +27,7 @@ public class GetTemplatesQueryHandler : IRequestHandler<GetTemplatesQuery, Templ
             CategoryName    = t.CategoryName ?? string.Empty,
             IsPaid          = t.IsPaid,
             Price           = t.Price,
+            TierType        = t.TierType,
             PreviewImageUrl = t.PreviewImageUrl,
             ThumbnailUrl    = t.ThumbnailUrl,
             Status          = t.Status,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, verifyOtp, resendOtp } from '../../api/auth';
 
@@ -14,16 +14,25 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown(s => (s <= 1 ? (clearInterval(t), 0) : s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null); setBusy(true);
     try {
       const res = await login({ emailOrUsername, password });
-      navigate(res.role === 'Admin' ? '/admin' : '/dashboard');
+      navigate(res.role === 'Admin' ? '/admin' : '/');
     } catch (x: unknown) {
       const msg = x instanceof Error ? x.message : 'Login failed';
-      if (msg.toLowerCase().includes('not verified')) {
+      if (msg.startsWith('TOO_MANY_REQUESTS:')) {
+        setCooldown(parseInt(msg.split(':')[1]) || 900);
+      } else if (msg.toLowerCase().includes('not verified')) {
         setPendingEmail(emailOrUsername.includes('@') ? emailOrUsername : '');
         setStep('verify-otp');
         setInfo('Your account is not verified. Enter the OTP sent to your email.');
@@ -41,7 +50,7 @@ const LoginPage: React.FC = () => {
       await verifyOtp({ email, otpCode: otp });
       setInfo('Account verified! Logging you in...');
       const res = await login({ emailOrUsername, password });
-      navigate(res.role === 'Admin' ? '/admin' : '/dashboard');
+      navigate(res.role === 'Admin' ? '/admin' : '/');
     } catch (x: unknown) {
       setError(x instanceof Error ? x.message : 'Verification failed');
     } finally { setBusy(false); }
@@ -84,6 +93,22 @@ const LoginPage: React.FC = () => {
 
                 {error && <div className="alert-error"><span>⚠️</span><span>{error}</span></div>}
 
+                {cooldown > 0 && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex items-center gap-3">
+                    <span className="text-xl">⏱️</span>
+                    <div>
+                      <p className="font-black">Too many attempts</p>
+                      <p className="text-xs mt-0.5">
+                        Please wait{' '}
+                        <span className="font-black text-amber-900 tabular-nums">
+                          {Math.floor(cooldown / 60)}:{String(cooldown % 60).padStart(2, '0')}
+                        </span>
+                        {' '}before trying again.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-black text-slate-700 mb-1.5">Email or Username</label>
@@ -96,8 +121,10 @@ const LoginPage: React.FC = () => {
                     </div>
                     <input type="password" className="input-green" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" required />
                   </div>
-                  <button type="submit" disabled={busy} className="btn-green mt-2">
-                    {busy ? '⏳ Signing in...' : 'Sign In →'}
+                  <button type="submit" disabled={busy || cooldown > 0} className="btn-green mt-2">
+                    {cooldown > 0
+                      ? `⏱ Wait ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, '0')}`
+                      : busy ? '⏳ Signing in...' : 'Sign In →'}
                   </button>
                 </form>
 

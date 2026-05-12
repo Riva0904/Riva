@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { submitRsvp, type SubmitRsvpRequest } from '../api/rsvp';
+import { submitRsvp } from '../api/rsvp';
 
 interface Props {
   slug: string;

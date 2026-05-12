@@ -14,6 +14,7 @@ import PublicInvitePage from './pages/Public/PublicInvitePage';
 import SettingsPage from './pages/User/Settings/SettingsPage';
 import PaymentPage from './pages/Payment/PaymentPage';
 import SubscriptionPage from './pages/Subscription/SubscriptionPage';
+import TemplatesPage from './pages/Templates/TemplatesPage';
 
 const USER_MODE_KEY = 'riva_theme_mode';
 
@@ -34,6 +35,7 @@ function App() {
       <Routes>
         {/* ── Public ── */}
         <Route path="/"                 element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/templates"        element={<TemplatesPage />} />
         <Route path="/invite/:slug"     element={<PublicInvitePage />} />
 
         {/* ── Auth ── */}

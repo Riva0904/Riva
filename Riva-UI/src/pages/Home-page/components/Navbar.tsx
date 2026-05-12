@@ -8,9 +8,9 @@ interface NavbarProps { onMenuToggle: () => void; }
 
 const NAV_LINKS = [
   { label: 'Home',      href: '/' },
-  { label: 'Templates', href: '#templates' },
-  { label: 'Features',  href: '#features' },
-  { label: 'Pricing',   href: '#pricing' },
+  { label: 'Templates', href: '/templates' },
+  { label: 'Features',  href: '/#features' },
+  { label: 'Pricing',   href: '/#pricing' },
 ];
 
 const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
@@ -60,18 +60,8 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <>
-              {role === 'Admin' && (
-                <motion.a
-                  href="/admin"
-                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                  className="navbar-btn-outline hidden md:inline-flex">
-                  ⚡ Admin
-                </motion.a>
-              )}
-
               <motion.a
-                href="/dashboard"
+                href={role === 'Admin' ? '/admin' : '/dashboard'}
                 whileHover={{ scale: 1.04, borderColor: 'var(--color-primary)' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 18 }}
@@ -109,13 +99,6 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
             </>
           )}
 
-          <motion.button
-            onClick={onMenuToggle}
-            whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-            className="navbar-btn-outline md:hidden p-2">
-            ☰
-          </motion.button>
         </div>
       </div>
     </header>

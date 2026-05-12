@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
 using Riva.Dto.Auth;
 using Riva.Service.Command.Auth;
@@ -23,9 +22,6 @@ public class AuthController : ControllerBase
     private readonly IJwtService           _jwt;
     private readonly IUserDeviceRepository _devices;
 
-    private const int MaxFailedAttempts = 5;
-    private const int LockoutMinutes    = 30;
-
     public AuthController(IMediator mediator, IConfiguration config,
         IEmailService email, IMemoryCache cache, IUserRepository users,
         IJwtService jwt, IUserDeviceRepository devices)
@@ -38,6 +34,40 @@ public class AuthController : ControllerBase
         _jwt      = jwt;
         _devices  = devices;
     }
+
+    // ── Progressive lockout helpers ───────────────────────────────────
+
+    private record LoginAttempt(int FailCount, DateTime? UnlocksAt);
+    private string AttemptKey(string id) => $"login_attempt:{id}";
+
+    private (bool isLocked, int remainingSeconds) GetLockoutStatus(string id)
+    {
+        if (!_cache.TryGetValue(AttemptKey(id), out LoginAttempt? a) || a is null) return (false, 0);
+        if (a.UnlocksAt.HasValue && a.UnlocksAt.Value > DateTime.UtcNow)
+            return (true, (int)Math.Ceiling((a.UnlocksAt.Value - DateTime.UtcNow).TotalSeconds));
+        return (false, 0);
+    }
+
+    private (bool nowLocked, int lockSeconds) RecordFailure(string id)
+    {
+        var current  = _cache.Get<LoginAttempt>(AttemptKey(id)) ?? new LoginAttempt(0, null);
+        var newCount = current.FailCount + 1;
+
+        // 3 attempts → 1 min | 5 attempts → 2 min | 6+ attempts → 7 min
+        int lockSeconds = newCount switch
+        {
+            >= 6 => 420,
+            >= 5 => 120,
+            >= 3 => 60,
+            _    => 0
+        };
+
+        var unlocksAt = lockSeconds > 0 ? DateTime.UtcNow.AddSeconds(lockSeconds) : (DateTime?)null;
+        _cache.Set(AttemptKey(id), new LoginAttempt(newCount, unlocksAt), TimeSpan.FromMinutes(30));
+        return (lockSeconds > 0, lockSeconds);
+    }
+
+    private void ResetAttempts(string id) => _cache.Remove(AttemptKey(id));
 
     private string DeviceHash(string? userAgent, string? ip)
     {
@@ -56,20 +86,17 @@ public class AuthController : ControllerBase
         return "Unknown browser";
     }
 
-    private string LockoutKey(string id) => $"lockout:{id}";
-    private string FailKey(string id)    => $"fails:{id}";
-
     // ── User Auth ─────────────────────────────────────────────────────
 
     [HttpPost("login")]
-    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var id = request.EmailOrUsername?.ToLowerInvariant() ?? "";
 
-        // Check lockout
-        if (_cache.TryGetValue(LockoutKey(id), out _))
-            return StatusCode(423, new { Message = $"Account locked due to too many failed attempts. Try again in {LockoutMinutes} minutes." });
+        // Check progressive lockout
+        var (isLocked, remaining) = GetLockoutStatus(id);
+        if (isLocked)
+            return StatusCode(429, new { message = "Too many login attempts. Please wait.", retryAfterSeconds = remaining });
 
         try
         {
@@ -79,8 +106,8 @@ public class AuthController : ControllerBase
                 Password        = request.Password
             });
 
-            // Reset failed attempts on success
-            _cache.Remove(FailKey(id));
+            // Reset on success
+            ResetAttempts(id);
 
             // ── Smart login notifications ──────────────────────────────────
             try
@@ -125,23 +152,11 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Increment failed attempts
-            var fails = _cache.GetOrCreate(FailKey(id), e =>
-            {
-                e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(LockoutMinutes);
-                return 0;
-            });
-            fails++;
-            _cache.Set(FailKey(id), fails, TimeSpan.FromMinutes(LockoutMinutes));
+            var (nowLocked, lockSeconds) = RecordFailure(id);
+            if (nowLocked)
+                return StatusCode(429, new { message = "Too many login attempts. Please wait.", retryAfterSeconds = lockSeconds });
 
-            if (fails >= MaxFailedAttempts)
-            {
-                _cache.Set(LockoutKey(id), true, TimeSpan.FromMinutes(LockoutMinutes));
-                _cache.Remove(FailKey(id));
-                return StatusCode(423, new { Message = $"Account locked after {MaxFailedAttempts} failed attempts. Try again in {LockoutMinutes} minutes." });
-            }
-
-            return Unauthorized(new { Message = ex.Message, AttemptsRemaining = MaxFailedAttempts - fails });
+            return Unauthorized(new { Message = ex.Message });
         }
     }
 

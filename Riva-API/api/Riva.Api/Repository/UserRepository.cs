@@ -10,7 +10,7 @@ public class UserRepository : IUserRepository
     private readonly DatabaseConnection _db;
 
     private const string SelectColumns =
-        "Id, Username, Email, DisplayName, PasswordHash, Role, IsActive, ProfileImageUrl, CreatedAt, UpdatedAt, LastLoginAt";
+        "Id, Username, Email, DisplayName, PasswordHash, Role, IsVerified, IsActive, ProfileImageUrl, CreatedAt, UpdatedAt, LastLoginAt";
 
     public UserRepository(DatabaseConnection db) => _db = db;
 
@@ -84,14 +84,15 @@ public class UserRepository : IUserRepository
     public async Task AddAsync(User user)
     {
         const string sql = @"
-            INSERT INTO Users (Username, Email, PasswordHash, Role, IsActive, CreatedAt)
-            VALUES (@Username, @Email, @PasswordHash, @Role, @IsActive, @CreatedAt)";
+            INSERT INTO Users (Username, Email, PasswordHash, Role, IsVerified, IsActive, CreatedAt)
+            VALUES (@Username, @Email, @PasswordHash, @Role, @IsVerified, @IsActive, @CreatedAt)";
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var cmd  = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Username",     user.Username);
         cmd.Parameters.AddWithValue("@Email",        user.Email);
         cmd.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
         cmd.Parameters.AddWithValue("@Role",         user.Role);
+        cmd.Parameters.AddWithValue("@IsVerified",   user.IsVerified);
         cmd.Parameters.AddWithValue("@IsActive",     user.IsActive);
         cmd.Parameters.AddWithValue("@CreatedAt",    user.CreatedAt);
         await cmd.ExecuteNonQueryAsync();
@@ -163,7 +164,16 @@ public class UserRepository : IUserRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public Task SetVerifiedAsync(string email) => Task.CompletedTask;
+    public async Task SetVerifiedAsync(string email)
+    {
+        const string sql = "UPDATE Users SET IsVerified = 1, UpdatedAt = @Now WHERE Email = @Email";
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Email", email);
+        cmd.Parameters.AddWithValue("@Now",   DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public Task SaveChangesAsync() => Task.CompletedTask;
 
     private static User Map(SqlDataReader r) => new()
@@ -174,7 +184,7 @@ public class UserRepository : IUserRepository
         DisplayName     = r.IsDBNull(r.GetOrdinal("DisplayName"))     ? null : r.GetString(r.GetOrdinal("DisplayName")),
         PasswordHash    = r.GetString(r.GetOrdinal("PasswordHash")),
         Role            = r.GetString(r.GetOrdinal("Role")),
-        IsVerified      = true,
+        IsVerified      = r.GetBoolean(r.GetOrdinal("IsVerified")),
         IsActive        = r.GetBoolean(r.GetOrdinal("IsActive")),
         ProfileImageUrl = r.IsDBNull(r.GetOrdinal("ProfileImageUrl")) ? null : r.GetString(r.GetOrdinal("ProfileImageUrl")),
         CreatedAt       = r.GetDateTime(r.GetOrdinal("CreatedAt")),

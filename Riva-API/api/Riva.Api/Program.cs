@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Riva.Api.Data;
 using Riva.Api.Middleware;
 using Riva.Api.Repository;
+using Riva.Service.Repository;
 using Riva.Api.Services;
 using Riva.Api.Util;
 using Riva.Service.Interfaces;
@@ -58,14 +59,14 @@ builder.Services.AddCors(o => o.AddPolicy("AllowFrontend", p =>
 // ── Rate Limiting ─────────────────────────────────────────────────────────────
 builder.Services.AddRateLimiter(options =>
 {
-    // Login: 5 attempts per IP per 15 minutes
+    // Login: 10 attempts per IP per 2 minutes
     options.AddPolicy("login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit       = 5,
-                Window            = TimeSpan.FromMinutes(15),
+                PermitLimit       = 10,
+                Window            = TimeSpan.FromMinutes(2),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit        = 0
             }));
@@ -98,8 +99,9 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (ctx, _) =>
     {
         ctx.HttpContext.Response.ContentType = "application/json";
+        ctx.HttpContext.Response.Headers["Retry-After"] = "120";
         await ctx.HttpContext.Response.WriteAsync(
-            "{\"message\":\"Too many requests. Please wait and try again.\"}");
+            "{\"message\":\"Too many requests. Please wait and try again.\",\"retryAfterSeconds\":120}");
     };
 });
 
@@ -146,7 +148,9 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IRsvpRepository, RsvpRepository>();
 builder.Services.AddScoped<IAppSettingsRepository, AppSettingsRepository>();
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
+builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 
 // ── Template Engine services ──────────────────────────────────────────────────
 builder.Services.AddScoped<IPlaceholderService, PlaceholderService>();

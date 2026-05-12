@@ -23,6 +23,9 @@ public class Template
     public bool IsPaid { get; set; }
     public decimal? Price { get; set; }
 
+    /// <summary>Free | Premium | Pro</summary>
+    public string TierType { get; set; } = "Free";
+
     /// <summary>Draft | Published | Archived</summary>
     public string Status { get; set; } = "Draft";
 

@@ -53,6 +53,7 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [form, setForm] = useState<AddTemplatePayload & { description: string; tags: string }>({
     name: '', description: '', categoryId: 0, isPaid: false, price: undefined,
+    tierType: 'Free',
     templateHtml: SAMPLE_HTML, templateCss: SAMPLE_CSS,
     templateJs: '', schemaJson: SAMPLE_SCHEMA,
     previewImageUrl: '', thumbnailUrl: '', tags: ''
@@ -82,12 +83,14 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
     e.preventDefault();
     setError(null); setSuccess(null); setLoading(true);
     try {
+      const isPaid = form.tierType !== 'Free';
       const res = await addTemplate({
         name: form.name,
         description: form.description,
         categoryId: form.categoryId,
-        isPaid: form.isPaid,
-        price: form.isPaid ? Number(form.price) : undefined,
+        isPaid,
+        price: isPaid ? Number(form.price) : undefined,
+        tierType: form.tierType,
         templateHtml: form.templateHtml,
         templateCss: form.templateCss,
         templateJs: form.templateJs,
@@ -152,7 +155,15 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
           </div>
 
           <div>
-            <label className={lbl}>Template Image</label>
+            <label className={lbl}>
+              Template Image
+              <span className="ml-2 text-[10px] font-normal text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">
+                Gallery card thumbnail — optional
+              </span>
+            </label>
+            <p className="text-xs text-slate-400 mb-2">
+              This image appears as the card thumbnail in the gallery. Users see the live animated preview (from your HTML/CSS) when they click <strong>▶ Live Preview</strong>.
+            </p>
             <div className="flex items-center gap-4">
               {/* Preview */}
               <div className="h-24 w-24 flex-shrink-0 rounded-xl border-2 border-dashed border-slate-300 overflow-hidden flex items-center justify-center bg-slate-50">
@@ -185,21 +196,39 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
               onChange={e => set('tags', e.target.value)} placeholder="birthday, celebration, fun" />
           </div>
 
-          <div className="flex items-center gap-4 rounded-xl bg-slate-50 p-4">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input type="checkbox" checked={form.isPaid}
-                onChange={e => set('isPaid', e.target.checked)}
-                className="h-4 w-4 rounded accent-green-600" />
-              <span className="text-sm font-black text-slate-700">Paid Template</span>
-            </label>
-            {form.isPaid && (
-              <div className="flex-1">
-                <input type="number" min={1} step={0.01} placeholder="Price ($)"
-                  value={form.price ?? ''} onChange={e => set('price', e.target.value)}
-                  className={inp} required />
-              </div>
-            )}
+          {/* Tier selector */}
+          <div>
+            <label className={lbl}>Template Tier *</label>
+            <div className="grid grid-cols-3 gap-3">
+              {(['Free', 'Premium', 'Pro'] as const).map(tier => {
+                const meta = {
+                  Free:    { icon: '🆓', color: 'border-green-400 bg-green-50 text-green-700',   desc: 'Text & quotes' },
+                  Premium: { icon: '💎', color: 'border-blue-400 bg-blue-50 text-blue-700',      desc: 'Images & animations' },
+                  Pro:     { icon: '🚀', color: 'border-purple-400 bg-purple-50 text-purple-700', desc: 'Map + all features' },
+                }[tier];
+                const active = form.tierType === tier;
+                return (
+                  <button key={tier} type="button"
+                    onClick={() => set('tierType', tier)}
+                    className={`rounded-xl border-2 p-3 text-center transition ${
+                      active ? meta.color + ' shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                    }`}>
+                    <p className="text-xl mb-1">{meta.icon}</p>
+                    <p className="text-xs font-black">{tier}</p>
+                    <p className="text-[10px] mt-0.5 opacity-70">{meta.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          {form.tierType !== 'Free' && (
+            <div>
+              <label className={lbl}>Price (₹) *</label>
+              <input type="number" min={1} step={1} placeholder={form.tierType === 'Pro' ? 'e.g. 299' : 'e.g. 149'}
+                value={form.price ?? ''} onChange={e => set('price', e.target.value)}
+                className={inp} required />
+            </div>
+          )}
         </div>
       )}
 

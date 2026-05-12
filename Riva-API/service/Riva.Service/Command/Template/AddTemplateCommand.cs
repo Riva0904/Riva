@@ -10,6 +10,7 @@ public class AddTemplateCommand : IRequest<AddTemplateResponse>
     public int CategoryId { get; set; }
     public bool IsPaid { get; set; }
     public decimal? Price { get; set; }
+    public string TierType { get; set; } = "Free";
     public string TemplateHtml { get; set; } = string.Empty;
     public string? TemplateCss { get; set; }
     public string? TemplateJs { get; set; }

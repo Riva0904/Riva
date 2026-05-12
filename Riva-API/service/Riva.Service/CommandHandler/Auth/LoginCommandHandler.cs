@@ -9,17 +9,12 @@ namespace Riva.Service.CommandHandler.Auth;
 public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IOtpRepository _otpRepository;
-    private readonly IJwtService _jwtService;
+    private readonly IJwtService     _jwtService;
 
-    public LoginCommandHandler(
-        IUserRepository userRepository,
-        IOtpRepository otpRepository,
-        IJwtService jwtService)
+    public LoginCommandHandler(IUserRepository userRepository, IJwtService jwtService)
     {
         _userRepository = userRepository;
-        _otpRepository = otpRepository;
-        _jwtService = jwtService;
+        _jwtService     = jwtService;
     }
 
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -33,9 +28,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         if (!user.IsActive)
             throw new UnauthorizedAccessException("Account is disabled. Contact admin.");
 
-        // All users must verify OTP before logging in
-        var hasVerifiedOtp = await _otpRepository.HasVerifiedOtpAsync(user.Email);
-        if (!hasVerifiedOtp)
+        if (!user.IsVerified)
             throw new UnauthorizedAccessException("Account not verified. Please check your email for the OTP.");
 
         // Capture whether this is the user's very first login (before updating)

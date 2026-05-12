@@ -14,12 +14,12 @@ public class TemplateRepository : ITemplateRepository
     {
         const string sql = @"
             INSERT INTO Templates
-                (Name, CategoryId, IsPaid, Price, TemplateHtml, TemplateCss, TemplateJs,
+                (Name, CategoryId, IsPaid, Price, TierType, TemplateHtml, TemplateCss, TemplateJs,
                  SchemaJson, PreviewImageUrl, ThumbnailUrl, Description, Status, Version,
                  CreatedBy, CreatedDate)
             OUTPUT INSERTED.TemplateId
             VALUES
-                (@Name, @CategoryId, @IsPaid, @Price, @TemplateHtml, @TemplateCss, @TemplateJs,
+                (@Name, @CategoryId, @IsPaid, @Price, @TierType, @TemplateHtml, @TemplateCss, @TemplateJs,
                  @SchemaJson, @PreviewImageUrl, @ThumbnailUrl, @Description, @Status, @Version,
                  @CreatedBy, @CreatedDate)";
 
@@ -29,6 +29,7 @@ public class TemplateRepository : ITemplateRepository
         cmd.Parameters.AddWithValue("@CategoryId",     t.CategoryId);
         cmd.Parameters.AddWithValue("@IsPaid",         t.IsPaid);
         cmd.Parameters.AddWithValue("@Price",          (object?)t.Price          ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TierType",       t.TierType);
         cmd.Parameters.AddWithValue("@TemplateHtml",   t.TemplateHtml);
         cmd.Parameters.AddWithValue("@TemplateCss",    (object?)t.TemplateCss    ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@TemplateJs",     (object?)t.TemplateJs     ?? DBNull.Value);
@@ -48,7 +49,7 @@ public class TemplateRepository : ITemplateRepository
     {
         const string sql = @"
             SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
-                   t.IsPaid, t.Price,
+                   t.IsPaid, t.Price, t.TierType,
                    t.TemplateHtml, t.TemplateCss, t.TemplateJs, t.SchemaJson,
                    t.PreviewImageUrl, t.ThumbnailUrl,
                    t.Status, t.Version, t.CreatedBy, t.CreatedDate, t.UpdatedDate,
@@ -64,11 +65,11 @@ public class TemplateRepository : ITemplateRepository
         return await r.ReadAsync() ? Map(r) : null;
     }
 
-    public async Task<IEnumerable<Template>> GetAllAsync(int? categoryId, bool? isPaid)
+    public async Task<IEnumerable<Template>> GetAllAsync(int? categoryId, bool? isPaid, string? tierType = null)
     {
         var sql = @"
             SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
-                   t.IsPaid, t.Price, t.SchemaJson,
+                   t.IsPaid, t.Price, t.TierType, t.SchemaJson,
                    t.PreviewImageUrl, t.ThumbnailUrl,
                    t.Status, t.Version, t.CreatedBy, t.CreatedDate,
                    c.Name AS CategoryName
@@ -76,14 +77,16 @@ public class TemplateRepository : ITemplateRepository
             LEFT JOIN Categories c ON c.CategoryId = t.CategoryId
             WHERE t.Status = 'Published'";
 
-        if (categoryId.HasValue) sql += " AND t.CategoryId = @CategoryId";
-        if (isPaid.HasValue)     sql += " AND t.IsPaid = @IsPaid";
+        if (categoryId.HasValue)                    sql += " AND t.CategoryId = @CategoryId";
+        if (!string.IsNullOrEmpty(tierType))         sql += " AND t.TierType = @TierType";
+        else if (isPaid.HasValue)                    sql += " AND t.IsPaid = @IsPaid";
         sql += " ORDER BY t.CreatedDate DESC";
 
         using var conn = await _db.GetOpenConnectionAsync();
         using var cmd  = new SqlCommand(sql, conn);
-        if (categoryId.HasValue) cmd.Parameters.AddWithValue("@CategoryId", categoryId.Value);
-        if (isPaid.HasValue)     cmd.Parameters.AddWithValue("@IsPaid",     isPaid.Value);
+        if (categoryId.HasValue)               cmd.Parameters.AddWithValue("@CategoryId", categoryId.Value);
+        if (!string.IsNullOrEmpty(tierType))    cmd.Parameters.AddWithValue("@TierType",   tierType);
+        else if (isPaid.HasValue)               cmd.Parameters.AddWithValue("@IsPaid",     isPaid.Value);
 
         using var r = await cmd.ExecuteReaderAsync();
         var list = new List<Template>();
@@ -96,7 +99,7 @@ public class TemplateRepository : ITemplateRepository
     {
         var sql = @"
             SELECT t.TemplateId, t.Name, t.Description, t.CategoryId,
-                   t.IsPaid, t.Price, t.SchemaJson,
+                   t.IsPaid, t.Price, t.TierType, t.SchemaJson,
                    t.PreviewImageUrl, t.ThumbnailUrl,
                    t.Status, t.Version, t.CreatedBy, t.CreatedDate,
                    c.Name AS CategoryName
@@ -132,6 +135,37 @@ public class TemplateRepository : ITemplateRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task UpdateTemplateAsync(int templateId, string name, int categoryId, bool isPaid, decimal? price,
+        string templateHtml, string? templateCss, string? templateJs, string schemaJson,
+        string? previewImageUrl, string? thumbnailUrl, string? description, string tierType = "Free")
+    {
+        const string sql = @"
+            UPDATE Templates SET
+                Name = @Name, CategoryId = @CategoryId, IsPaid = @IsPaid, Price = @Price,
+                TierType = @TierType,
+                TemplateHtml = @TemplateHtml, TemplateCss = @TemplateCss, TemplateJs = @TemplateJs,
+                SchemaJson = @SchemaJson, PreviewImageUrl = @PreviewImageUrl, ThumbnailUrl = @ThumbnailUrl,
+                Description = @Description, UpdatedDate = @UpdatedDate
+            WHERE TemplateId = @TemplateId";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@TemplateId",      templateId);
+        cmd.Parameters.AddWithValue("@Name",            name);
+        cmd.Parameters.AddWithValue("@CategoryId",      categoryId);
+        cmd.Parameters.AddWithValue("@IsPaid",          isPaid);
+        cmd.Parameters.AddWithValue("@Price",           (object?)price          ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TierType",        tierType);
+        cmd.Parameters.AddWithValue("@TemplateHtml",    templateHtml);
+        cmd.Parameters.AddWithValue("@TemplateCss",     (object?)templateCss    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@TemplateJs",      (object?)templateJs     ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@SchemaJson",      schemaJson);
+        cmd.Parameters.AddWithValue("@PreviewImageUrl", (object?)previewImageUrl ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@ThumbnailUrl",    (object?)thumbnailUrl   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Description",     (object?)description    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@UpdatedDate",     DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private static Template Map(SqlDataReader r) => new()
@@ -142,6 +176,7 @@ public class TemplateRepository : ITemplateRepository
         CategoryId      = r.GetInt32(r.GetOrdinal("CategoryId")),
         IsPaid          = r.GetBoolean(r.GetOrdinal("IsPaid")),
         Price           = r.IsDBNull(r.GetOrdinal("Price"))           ? null : r.GetDecimal(r.GetOrdinal("Price")),
+        TierType        = r.IsDBNull(r.GetOrdinal("TierType"))        ? "Free" : r.GetString(r.GetOrdinal("TierType")),
         TemplateHtml    = r.GetString(r.GetOrdinal("TemplateHtml")),
         TemplateCss     = r.IsDBNull(r.GetOrdinal("TemplateCss"))     ? null : r.GetString(r.GetOrdinal("TemplateCss")),
         TemplateJs      = r.IsDBNull(r.GetOrdinal("TemplateJs"))      ? null : r.GetString(r.GetOrdinal("TemplateJs")),
@@ -165,6 +200,7 @@ public class TemplateRepository : ITemplateRepository
         CategoryId      = r.GetInt32(r.GetOrdinal("CategoryId")),
         IsPaid          = r.GetBoolean(r.GetOrdinal("IsPaid")),
         Price           = r.IsDBNull(r.GetOrdinal("Price"))           ? null : r.GetDecimal(r.GetOrdinal("Price")),
+        TierType        = r.IsDBNull(r.GetOrdinal("TierType"))        ? "Free" : r.GetString(r.GetOrdinal("TierType")),
         SchemaJson      = r.GetString(r.GetOrdinal("SchemaJson")),
         PreviewImageUrl = r.IsDBNull(r.GetOrdinal("PreviewImageUrl")) ? null : r.GetString(r.GetOrdinal("PreviewImageUrl")),
         ThumbnailUrl    = r.IsDBNull(r.GetOrdinal("ThumbnailUrl"))    ? null : r.GetString(r.GetOrdinal("ThumbnailUrl")),
