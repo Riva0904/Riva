@@ -35,8 +35,8 @@ function parseHex(hex: string): [number, number, number] | null {
   return [r, g, b];
 }
 
-/** Apply gradient colors + dark/light mode to the entire app */
-export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '135deg', mode: 'light' | 'dark' = 'light') {
+/** Apply gradient colors (admin-controlled). Dark/light is user-controlled separately. */
+export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '135deg', mode?: 'light' | 'dark') {
   const root     = document.documentElement;
   const gradient = `linear-gradient(${gradientDir}, ${colorStart}, ${colorEnd})`;
 
@@ -54,8 +54,7 @@ export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '
     root.style.setProperty('--color-primary-text',        `rgb(${Math.max(0,r-40)},${Math.max(0,g-40)},${Math.max(0,b-40)})`);
   }
 
-  // Dark / light mode — sets data-theme attribute on <html>
-  root.setAttribute('data-theme', mode);
+  // mode param kept for backward compat but user preference overrides via App.tsx
 }
 
 /** Compute shades used in the branding preview */

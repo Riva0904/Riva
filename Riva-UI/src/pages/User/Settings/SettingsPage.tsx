@@ -4,11 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { changePassword } from '../../../api/user';
 import { logout, forgotPassword, resetPassword, getStoredEmail } from '../../../api/auth';
 
-type Section = 'password' | 'account' | 'notifications';
+type Section = 'password' | 'account' | 'notifications' | 'appearance';
+
+const USER_MODE_KEY = 'riva_theme_mode';
 
 const SettingsPage: React.FC = () => {
   const navigate  = useNavigate();
   const [active,  setActive]  = useState<Section>('password');
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(
+    () => (localStorage.getItem(USER_MODE_KEY) ?? 'light') as 'light' | 'dark'
+  );
   const [toast,   setToast]   = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // Change password form
@@ -101,10 +106,17 @@ const SettingsPage: React.FC = () => {
     navigate('/login');
   };
 
+  const applyMode = (mode: 'light' | 'dark') => {
+    setThemeMode(mode);
+    localStorage.setItem(USER_MODE_KEY, mode);
+    document.documentElement.setAttribute('data-theme', mode);
+  };
+
   const sidebarItems: { id: Section; icon: string; label: string }[] = [
-    { id: 'password',      icon: '🔑', label: 'Change Password' },
-    { id: 'account',       icon: '👤', label: 'Account' },
-    { id: 'notifications', icon: '🔔', label: 'Notifications' },
+    { id: 'password',    icon: '🔑', label: 'Change Password' },
+    { id: 'account',     icon: '👤', label: 'Account' },
+    { id: 'notifications',icon: '🔔', label: 'Notifications' },
+    { id: 'appearance',  icon: '🎨', label: 'Appearance' },
   ];
 
   const inputCls = "input-green";
@@ -364,6 +376,51 @@ const SettingsPage: React.FC = () => {
                     className="btn-green mt-5">
                     Save Preferences
                   </motion.button>
+                </motion.div>
+              )}
+
+              {/* ── Appearance ── */}
+              {active === 'appearance' && (
+                <motion.div key="appearance"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  className="card-green p-6">
+                  <h2 className="text-xl font-black mb-1" style={{ color: 'var(--text-heading)' }}>Appearance</h2>
+                  <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                    Choose your preferred display mode. Your choice is saved to this device only.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {(['light', 'dark'] as const).map(mode => (
+                      <motion.button key={mode} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => applyMode(mode)}
+                        className="relative rounded-2xl border-2 p-5 text-left transition"
+                        style={{
+                          borderColor: themeMode === mode ? 'var(--color-primary)' : 'var(--border-base)',
+                          background: themeMode === mode ? 'rgba(var(--color-primary-rgb),0.07)' : 'var(--bg-muted)',
+                        }}>
+                        {/* Preview */}
+                        <div className="rounded-xl overflow-hidden mb-3 shadow-sm"
+                          style={{ background: mode === 'dark' ? '#0f172a' : '#f8fafc', height: 80, border: '1px solid', borderColor: mode === 'dark' ? '#334155' : '#e2e8f0' }}>
+                          <div className="h-3 w-full" style={{ background: 'var(--color-gradient)' }} />
+                          <div className="p-2 space-y-1.5">
+                            <div className="rounded h-2 w-3/4" style={{ background: mode === 'dark' ? '#334155' : '#e2e8f0' }} />
+                            <div className="rounded h-2 w-1/2" style={{ background: mode === 'dark' ? '#1e293b' : '#f1f5f9' }} />
+                            <div className="rounded h-2 w-2/3" style={{ background: mode === 'dark' ? '#334155' : '#e2e8f0' }} />
+                          </div>
+                        </div>
+                        <p className="font-black text-sm" style={{ color: 'var(--text-heading)' }}>
+                          {mode === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {mode === 'light' ? 'Classic bright interface' : 'Easy on the eyes at night'}
+                        </p>
+                        {themeMode === mode && (
+                          <span className="absolute top-3 right-3 text-xs font-black rounded-full px-2 py-0.5 text-white"
+                            style={{ background: 'var(--color-primary)' }}>Active</span>
+                        )}
+                      </motion.button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
 

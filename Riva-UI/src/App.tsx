@@ -15,12 +15,18 @@ import SettingsPage from './pages/User/Settings/SettingsPage';
 import PaymentPage from './pages/Payment/PaymentPage';
 import SubscriptionPage from './pages/Subscription/SubscriptionPage';
 
+const USER_MODE_KEY = 'riva_theme_mode';
+
 function App() {
-  // Load and apply admin-configured theme on every page load
   useEffect(() => {
+    // 1. Apply admin gradient colors
     getTheme()
-      .then(t => applyTheme(t.colorStart, t.colorEnd, t.gradientDir, t.mode ?? 'light'))
-      .catch(() => {}); // silently fall back to CSS defaults
+      .then(t => applyTheme(t.colorStart, t.colorEnd, t.gradientDir))
+      .catch(() => {});
+
+    // 2. Apply user's own dark/light preference (stored in localStorage)
+    const userMode = (localStorage.getItem(USER_MODE_KEY) ?? 'light') as 'light' | 'dark';
+    document.documentElement.setAttribute('data-theme', userMode);
   }, []);
 
   return (

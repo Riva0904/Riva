@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { login, verifyOtp, resendOtp } from '../../api/auth';
 
 type Step = 'login' | 'verify-otp';
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('login');
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +20,7 @@ const LoginPage: React.FC = () => {
     setError(null); setBusy(true);
     try {
       const res = await login({ emailOrUsername, password });
-      window.location.href = res.role === 'Admin' ? '/admin' : '/dashboard';
+      navigate(res.role === 'Admin' ? '/admin' : '/dashboard');
     } catch (x: unknown) {
       const msg = x instanceof Error ? x.message : 'Login failed';
       if (msg.toLowerCase().includes('not verified')) {
@@ -39,7 +41,7 @@ const LoginPage: React.FC = () => {
       await verifyOtp({ email, otpCode: otp });
       setInfo('Account verified! Logging you in...');
       const res = await login({ emailOrUsername, password });
-      window.location.href = res.role === 'Admin' ? '/admin' : '/dashboard';
+      navigate(res.role === 'Admin' ? '/admin' : '/dashboard');
     } catch (x: unknown) {
       setError(x instanceof Error ? x.message : 'Verification failed');
     } finally { setBusy(false); }
