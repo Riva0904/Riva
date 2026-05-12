@@ -13,4 +13,5 @@ public class LoginResponse
     public string SubscriptionTier { get; set; } = "Free"; // Free, Premium, Enterprise
     public DateTime? SubscriptionExpiryDate { get; set; }
     public DateTime ExpiresAt { get; set; }
+    public bool IsFirstLogin { get; set; }   // true when LastLoginAt was null before this login
 }

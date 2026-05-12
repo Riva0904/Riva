@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,18 +15,20 @@ namespace Riva.Api.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IMediator       _mediator;
-    private readonly IConfiguration  _config;
-    private readonly IEmailService   _email;
-    private readonly IMemoryCache    _cache;
-    private readonly IUserRepository _users;
-    private readonly IJwtService     _jwt;
+    private readonly IMediator             _mediator;
+    private readonly IConfiguration        _config;
+    private readonly IEmailService         _email;
+    private readonly IMemoryCache          _cache;
+    private readonly IUserRepository       _users;
+    private readonly IJwtService           _jwt;
+    private readonly IUserDeviceRepository _devices;
 
     private const int MaxFailedAttempts = 5;
     private const int LockoutMinutes    = 30;
 
     public AuthController(IMediator mediator, IConfiguration config,
-        IEmailService email, IMemoryCache cache, IUserRepository users, IJwtService jwt)
+        IEmailService email, IMemoryCache cache, IUserRepository users,
+        IJwtService jwt, IUserDeviceRepository devices)
     {
         _mediator = mediator;
         _config   = config;
@@ -32,6 +36,24 @@ public class AuthController : ControllerBase
         _cache    = cache;
         _users    = users;
         _jwt      = jwt;
+        _devices  = devices;
+    }
+
+    private string DeviceHash(string? userAgent, string? ip)
+    {
+        var raw = $"{userAgent?.ToLowerInvariant()}|{ip}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)))[..32];
+    }
+
+    private string FriendlyDevice(string? userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent)) return "Unknown device";
+        if (userAgent.Contains("iPhone") || userAgent.Contains("iPad")) return "iPhone / iPad";
+        if (userAgent.Contains("Android")) return "Android device";
+        if (userAgent.Contains("Windows")) return "Windows PC";
+        if (userAgent.Contains("Macintosh")) return "Mac";
+        if (userAgent.Contains("Linux")) return "Linux device";
+        return "Unknown browser";
     }
 
     private string LockoutKey(string id) => $"lockout:{id}";
@@ -60,14 +82,44 @@ public class AuthController : ControllerBase
             // Reset failed attempts on success
             _cache.Remove(FailKey(id));
 
-            // Security alert email
+            // ── Smart login notifications ──────────────────────────────────
             try
             {
-                var settingsLink = $"{_config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173"}/settings";
+                var frontendUrl  = _config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+                var ua           = Request.Headers["User-Agent"].ToString();
+                var ip           = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var deviceHash   = DeviceHash(ua, ip);
+                var deviceLabel  = FriendlyDevice(ua);
                 var loginTime    = DateTime.UtcNow.ToString("dddd, dd MMM yyyy HH:mm 'UTC'");
-                await _email.SendLoginAlertAsync(response.Email, response.Username, loginTime, settingsLink);
+
+                if (response.IsFirstLogin)
+                {
+                    // First ever login → welcome email + register device
+                    await _email.SendFirstLoginWelcomeAsync(
+                        response.Email, response.Username, $"{frontendUrl}/dashboard");
+                    await _devices.AddDeviceAsync(
+                        (await _users.GetByEmailAsync(response.Email))!.Id, deviceHash, deviceLabel);
+                }
+                else
+                {
+                    var user = await _users.GetByEmailAsync(response.Email);
+                    if (user is not null)
+                    {
+                        var known = await _devices.IsKnownDeviceAsync(user.Id, deviceHash);
+                        if (!known)
+                        {
+                            // New device → security alert + register it
+                            await _email.SendNewDeviceAlertAsync(
+                                response.Email, response.Username,
+                                deviceLabel, loginTime,
+                                $"{frontendUrl}/settings");
+                            await _devices.AddDeviceAsync(user.Id, deviceHash, deviceLabel);
+                        }
+                        // Known device → no email (normal login)
+                    }
+                }
             }
-            catch { }
+            catch { /* never block login due to email/device issues */ }
 
             return Ok(response);
         }

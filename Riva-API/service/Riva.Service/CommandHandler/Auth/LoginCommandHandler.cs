@@ -38,6 +38,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         if (!hasVerifiedOtp)
             throw new UnauthorizedAccessException("Account not verified. Please check your email for the OTP.");
 
+        // Capture whether this is the user's very first login (before updating)
+        var isFirstLogin = user.LastLoginAt == null;
+
         // Record the login time (fire-and-forget — never blocks the login response)
         _ = _userRepository.UpdateLastLoginAsync(user.Id);
 
@@ -45,10 +48,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
         return new LoginResponse
         {
-            Token = token,
-            Username = user.Username,
-            Email = user.Email,
-            Role = user.Role
+            Token        = token,
+            Username     = user.Username,
+            Email        = user.Email,
+            Role         = user.Role,
+            IsFirstLogin = isFirstLogin
         };
     }
 }

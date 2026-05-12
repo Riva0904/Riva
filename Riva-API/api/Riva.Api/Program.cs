@@ -146,6 +146,7 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IRsvpRepository, RsvpRepository>();
 builder.Services.AddScoped<IAppSettingsRepository, AppSettingsRepository>();
+builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
 
 // ── Template Engine services ──────────────────────────────────────────────────
 builder.Services.AddScoped<IPlaceholderService, PlaceholderService>();

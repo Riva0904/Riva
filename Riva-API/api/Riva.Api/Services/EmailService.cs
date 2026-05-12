@@ -187,6 +187,72 @@ public class EmailService : IEmailService
         await client.DisconnectAsync(true);
     }
 
+    public async Task SendFirstLoginWelcomeAsync(string toEmail, string toName, string dashboardLink)
+    {
+        var html = $@"<!DOCTYPE html><html><head><meta charset='UTF-8'></head>
+<body style='font-family:Arial,sans-serif;background:#f0fdf4;padding:32px;'>
+  <div style='max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08);'>
+    <div style='background:linear-gradient(135deg,#16a34a,#059669);padding:32px;text-align:center;'>
+      <div style='font-size:3rem;margin-bottom:8px;'>🎉</div>
+      <h1 style='color:#fff;margin:0;font-size:1.6rem;'>Successfully Logged In!</h1>
+      <p style='color:#bbf7d0;margin:8px 0 0;'>Welcome to Riva — you&apos;re all set!</p>
+    </div>
+    <div style='padding:32px;'>
+      <p>Hi <strong>{toName}</strong>,</p>
+      <p style='color:#475569;line-height:1.7;'>
+        Congratulations! You have <strong>successfully signed in</strong> to your Riva account for the first time.
+        Start creating beautiful digital invitations and share them with the world!
+      </p>
+      <div style='background:#f0fdf4;border-radius:12px;padding:18px;margin:20px 0;border-left:4px solid #16a34a;'>
+        <p style='margin:0;color:#166534;font-weight:bold;'>✨ What you can do now:</p>
+        <p style='margin:6px 0 0;color:#15803d;font-size:.9rem;'>🎨 Browse 50+ animated templates</p>
+        <p style='margin:4px 0;color:#15803d;font-size:.9rem;'>📩 Share invitations via link, QR, or WhatsApp</p>
+        <p style='margin:4px 0;color:#15803d;font-size:.9rem;'>📊 Track RSVPs in real time</p>
+      </div>
+      <div style='text-align:center;margin:24px 0;'>
+        <a href='{dashboardLink}' style='background:linear-gradient(135deg,#16a34a,#059669);color:#fff;font-weight:bold;padding:14px 36px;border-radius:12px;text-decoration:none;font-size:.95rem;display:inline-block;'>
+          Go to Dashboard →
+        </a>
+      </div>
+      <p style='color:#94a3b8;font-size:.8rem;text-align:center;'>Riva Digital Invitation Platform</p>
+    </div>
+  </div>
+</body></html>";
+        await SendAsync(toEmail, toName, "🎉 Welcome to Riva — Successfully Logged In!", html);
+    }
+
+    public async Task SendNewDeviceAlertAsync(string toEmail, string toName, string deviceInfo, string loginTime, string settingsLink)
+    {
+        var html = $@"<!DOCTYPE html><html><head><meta charset='UTF-8'></head>
+<body style='font-family:Arial,sans-serif;background:#fef2f2;padding:32px;'>
+  <div style='max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08);'>
+    <div style='background:linear-gradient(135deg,#dc2626,#b91c1c);padding:28px;text-align:center;'>
+      <div style='font-size:2.5rem;margin-bottom:8px;'>🔐</div>
+      <h2 style='color:#fff;margin:0;font-size:1.3rem;'>New Device Login Detected</h2>
+    </div>
+    <div style='padding:28px 32px;'>
+      <p>Hi <strong>{toName}</strong>,</p>
+      <p style='color:#475569;'>Your Riva account was accessed from a <strong style=""color:#dc2626;"">new device or browser</strong>.</p>
+      <div style='background:#fef2f2;border-radius:12px;padding:18px;margin:18px 0;border-left:4px solid #dc2626;'>
+        <p style='margin:0 0 8px;font-size:.85rem;color:#7f1d1d;font-weight:bold;'>Login Details:</p>
+        <p style='margin:4px 0;font-size:.88rem;color:#991b1b;'>🕐 <strong>Time:</strong> {loginTime}</p>
+        <p style='margin:4px 0;font-size:.88rem;color:#991b1b;'>💻 <strong>Device:</strong> {deviceInfo}</p>
+      </div>
+      <p style='color:#dc2626;font-weight:bold;background:#fef2f2;border-radius:8px;padding:12px;'>
+        ⚠️ If this was NOT you, change your password immediately!
+      </p>
+      <div style='text-align:center;margin:24px 0;'>
+        <a href='{settingsLink}' style='background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:bold;padding:13px 28px;border-radius:10px;text-decoration:none;display:inline-block;'>
+          Change Password →
+        </a>
+      </div>
+      <p style='color:#94a3b8;font-size:.8rem;text-align:center;'>Riva Digital Invitation Platform</p>
+    </div>
+  </div>
+</body></html>";
+        await SendAsync(toEmail, toName, "⚠️ New Device Login to Your Riva Account", html);
+    }
+
     public async Task SendLoginAlertAsync(string toEmail, string toName, string loginTime, string settingsLink)
     {
         var html = $@"<!DOCTYPE html><html><head><meta charset='UTF-8'></head>
