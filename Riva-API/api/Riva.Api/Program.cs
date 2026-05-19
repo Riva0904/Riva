@@ -6,7 +6,6 @@ using Microsoft.IdentityModel.Tokens;
 using Riva.Api.Data;
 using Riva.Api.Middleware;
 using Riva.Api.Repository;
-using Riva.Service.Repository;
 using Riva.Api.Services;
 using Riva.Api.Util;
 using Riva.Service.Interfaces;
@@ -164,6 +163,13 @@ builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
+// Auto-create any missing DB tables (e.g. AppSettings) so the app starts cleanly
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DatabaseConnection>();
+    await DatabaseInitializer.EnsureTablesAsync(db);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -192,3 +198,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 app.Run();
+
+// Expose Program for integration tests (WebApplicationFactory<Program>)
+public partial class Program { }

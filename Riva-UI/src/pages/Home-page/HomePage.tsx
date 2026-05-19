@@ -16,8 +16,8 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="relative overflow-hidden">
-      <Navbar onMenuToggle={() => setIsMenuOpen(o => !o)} />
-      <MobileMenu isOpen={isMenuOpen} />
+      <Navbar onMenuToggle={() => setIsMenuOpen(o => !o)} menuOpen={isMenuOpen} />
+      <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <main className="relative">
         <Hero />
         <Templates />

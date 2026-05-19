@@ -61,6 +61,24 @@ public class CategoryRepository : ICategoryRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<bool> DeleteAsync(int categoryId)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+
+        // Block delete if templates use this category
+        await using var chkCmd = new SqlCommand(
+            "SELECT COUNT(1) FROM Templates WHERE CategoryId = @Id", conn);
+        chkCmd.Parameters.AddWithValue("@Id", categoryId);
+        var count = (int)await chkCmd.ExecuteScalarAsync();
+        if (count > 0) return false;
+
+        await using var delCmd = new SqlCommand(
+            "DELETE FROM Categories WHERE CategoryId = @Id", conn);
+        delCmd.Parameters.AddWithValue("@Id", categoryId);
+        await delCmd.ExecuteNonQueryAsync();
+        return true;
+    }
+
     private async Task<List<Category>> QueryAll(string sql)
     {
         await using var conn = await _db.GetOpenConnectionAsync();

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { getStoredAuthToken } from '../../../api/client';
+import { getMyPlan, type MyPlan } from '../../../api/subscriptions';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const LINKS = {
@@ -68,7 +70,7 @@ const SOCIALS = [
 ];
 
 const TIERS = [
-  { tier:'Free',    icon:'🆓', price:'₹0',       color:'#16a34a' },
+  { tier:'Free',    icon:'🆓', price:'₹0',       color:'var(--color-primary)' },
   { tier:'Premium', icon:'💎', price:'₹799/mo',  color:'#3b82f6' },
   { tier:'Pro',     icon:'🚀', price:'₹1,499/mo',color:'#8b5cf6' },
 ];
@@ -98,7 +100,7 @@ const FooterLink: React.FC<{ label: string; href: string; onClick: () => void }>
       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
       className="flex items-center gap-1.5 text-sm text-left transition-colors group"
       style={{ color: 'rgba(255,255,255,0.5)' }}
-      onMouseEnter={e => (e.currentTarget.style.color = '#4ade80')}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-on-gradient)')}
       onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
       <motion.span
         initial={{ opacity: 0, x: -4 }}
@@ -148,7 +150,7 @@ const NewsletterStrip: React.FC = () => {
             placeholder="your@email.com"
             className="flex-1 sm:w-52 rounded-xl px-4 py-2.5 text-sm text-white outline-none transition"
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
-            onFocus={e => e.currentTarget.style.borderColor = '#4ade80'}
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
             onBlur={e  => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
           />
           <AnimatePresence mode="wait">
@@ -177,7 +179,35 @@ const NewsletterStrip: React.FC = () => {
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 const Footer: React.FC = () => {
-  const go = useFooterNav();
+  const go       = useFooterNav();
+  const navigate = useNavigate();
+  const loggedIn = !!getStoredAuthToken();
+  const [myPlan, setMyPlan] = useState<MyPlan | null>(null);
+
+  useEffect(() => {
+    if (loggedIn) getMyPlan().then(setMyPlan).catch(() => {});
+  }, [loggedIn]);
+
+  const activePlan = myPlan?.subscription?.status === 'Active'
+    ? myPlan.subscription.planType
+    : null;
+
+  // Same logic as Pricing.tsx handlePlanClick
+  const handleTierClick = (tierName: string) => {
+    if (!loggedIn) { navigate('/register'); return; }
+    if (tierName === 'Free') { navigate('/templates?tier=Free'); return; }
+    if (tierName === 'Pro') {
+      activePlan === 'Pro' || activePlan === 'Premium'
+        ? navigate('/templates?tier=Pro')
+        : navigate('/payment?plan=Pro&cycle=monthly');
+      return;
+    }
+    if (tierName === 'Premium') {
+      activePlan === 'Premium'
+        ? navigate('/templates?tier=Premium')
+        : navigate('/payment?plan=Premium&cycle=monthly');
+    }
+  };
 
   return (
     <footer className="relative overflow-hidden"
@@ -199,7 +229,7 @@ const Footer: React.FC = () => {
           animate={{ opacity: [0.03, 0.07, 0.03] }}
           transition={{ duration: 5, repeat: Infinity }}
           className="absolute inset-0"
-          style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(22,163,74,0.08) 0%,transparent 50%), radial-gradient(circle at 80% 20%, rgba(124,58,237,0.06) 0%,transparent 50%)' }} />
+          style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(var(--color-primary-rgb),0.08) 0%,transparent 50%), radial-gradient(circle at 80% 20%, rgba(124,58,237,0.06) 0%,transparent 50%)' }} />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-6 pt-16 pb-8 lg:px-8">
@@ -258,7 +288,7 @@ const Footer: React.FC = () => {
               whileHover={{ x: 4 }}
               className="mt-5 flex items-center gap-2 text-xs transition"
               style={{ color: 'rgba(255,255,255,0.4)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#4ade80'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}>
               ✉️ rivainvitation@gmail.com
             </motion.button>
@@ -294,15 +324,23 @@ const Footer: React.FC = () => {
           <div className="flex items-center gap-3 flex-wrap">
             {TIERS.map((t, i) => (
               <motion.button key={t.tier}
-                onClick={() => go(t.tier === 'Free' ? '/templates' : '/#pricing')}
+                onClick={() => handleTierClick(t.tier)}
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.2 + i * 0.08 }}
                 whileHover={{ scale: 1.08, y: -2 }} whileTap={{ scale: 0.95 }}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black text-white cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black text-white cursor-pointer relative"
                 style={{ background: t.color }}>
                 {t.icon} {t.tier} · {t.price}
+                {/* Active plan indicator dot */}
+                {loggedIn && (
+                  (t.tier === 'Pro' && (activePlan === 'Pro' || activePlan === 'Premium')) ||
+                  (t.tier === 'Premium' && activePlan === 'Premium') ||
+                  (t.tier === 'Free' && !activePlan)
+                ) && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
+                )}
               </motion.button>
             ))}
           </div>
@@ -342,10 +380,10 @@ const Footer: React.FC = () => {
               Terms
             </motion.button>
             <motion.button onClick={() => go('/templates')}
-              whileHover={{ scale: 1.04, color: '#4ade80' }}
+              whileHover={{ scale: 1.04 }}
               className="text-xs font-semibold transition"
               style={{ color: 'rgba(255,255,255,0.35)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#4ade80'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}>
               Browse Templates →
             </motion.button>

@@ -8,9 +8,9 @@ const features = [
     icon: '🎉', title: 'Animated RSVP Cards',
     color: 'from-green-400 to-emerald-600',
     stat: '127+ avg RSVPs',
-    front: 'Guests respond with a single tap — Accept, Decline, or Maybe.',
-    back: 'Real-time RSVP dashboard shows who\'s coming, who declined, and who hasn\'t responded yet. Export to CSV, get instant WhatsApp notifications on every RSVP.',
-    demo: '🎊 → Accept\n😔 → Decline\n🤔 → Maybe',
+    front: 'Guests respond with a single tap — Accept, Decline, or Maybe. Export all responses as CSV in one click.',
+    back: 'Real-time RSVP dashboard shows who\'s coming, who declined, and who hasn\'t responded yet. View guest messages, track responses live, and export the full guest list as a CSV file for offline use.',
+    demo: '🎊 → Accept  😔 → Decline  🤔 → Maybe\n⬇️ Export guest list as CSV',
   },
   {
     icon: '💌', title: 'Personalized Messaging',
@@ -23,9 +23,9 @@ const features = [
   {
     icon: '✨', title: 'Premium Animated Themes',
     color: 'from-purple-400 to-pink-600',
-    stat: '15+ premium themes',
+    stat: '100+ premium themes',
     front: 'Wedding, Birthday, House Warming — each with animations, countdown timers, and galleries.',
-    back: 'Free templates for text-based cards. Premium adds images & animations. Pro adds Google Maps, video embeds, and full mini-website experience with RSVP forms.',
+    back: 'Free templates for text-based cards. Premium adds images & animations. Pro adds Google Maps and full mini-website experience with RSVP forms.',
     demo: '🆓 Free · 💎 Premium · 🚀 Pro',
   },
   {
@@ -47,10 +47,10 @@ const features = [
   {
     icon: '🔒', title: 'Secure & Private',
     color: 'from-slate-500 to-slate-700',
-    stat: 'End-to-end secure',
-    front: 'Tokenized URLs and private guest access — your invitation stays safe.',
-    back: 'Each invitation gets a unique encrypted URL. Optional password protection prevents uninvited guests. All data is stored securely and never shared with third parties.',
-    demo: '🛡️ AES-256 encrypted links',
+    stat: 'Screenshot restricted',
+    front: 'Screenshot protection — your invitation content stays private.',
+    back: 'Screenshot capture is restricted on invitation pages to protect your content. Data is stored securely and never shared with third parties.',
+    demo: '🛡️ Screenshot blocked · 🔒 Private access',
   },
 ];
 
@@ -73,22 +73,22 @@ const FlipCard: React.FC<{ f: typeof features[0]; idx: number }> = ({ f, idx }) 
         style={{ position: 'relative', width: '100%', height: '100%', transformStyle: 'preserve-3d' }}
       >
         {/* Front */}
-        <div style={{ backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
-          className="rounded-3xl p-6 flex flex-col group relative overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(74,222,128,0.15)', backdropFilter: 'blur(12px)' }}>
+        <div style={{ backfaceVisibility: 'hidden', position: 'absolute', inset: 0,
+          background: 'var(--card-bg-on-gradient)', border: '1px solid var(--border-on-gradient)', backdropFilter: 'blur(12px)' }}
+          className="rounded-3xl p-6 flex flex-col group relative overflow-hidden">
           <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-br ${f.color} opacity-20 blur-xl`} />
           <div className={`mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${f.color} text-2xl shadow-lg flex-shrink-0`}>
             {f.icon}
           </div>
-          <h3 className="text-lg font-black text-white mb-2">{f.title}</h3>
-          <p className="text-sm leading-6 text-green-200/80 flex-1">{f.front}</p>
+          <h3 className="text-lg font-black mb-2" style={{ color: 'var(--text-on-gradient)' }}>{f.title}</h3>
+          <p className="text-sm leading-6 flex-1" style={{ color: 'var(--text-on-gradient-muted)' }}>{f.front}</p>
           <div className="mt-3 flex items-center justify-between">
             <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1"
-              style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.20)' }}>
-              <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-              <span className="text-xs font-black text-green-300">{f.stat}</span>
+              style={{ background: 'var(--badge-bg-on-gradient)', border: '1px solid var(--badge-border-on-gradient)' }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--text-on-gradient-muted)' }} />
+              <span className="text-xs font-black" style={{ color: 'var(--text-on-gradient-muted)' }}>{f.stat}</span>
             </div>
-            <span className="text-xs text-green-400/60 font-semibold">Tap for details →</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-on-gradient-subtle)' }}>Tap for details →</span>
           </div>
         </div>
 
@@ -126,21 +126,22 @@ const Features: React.FC = () => {
       <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-6">
         <span className="inline-block rounded-full px-4 py-1 text-sm font-black mb-4"
-          style={{ background: 'rgba(var(--color-primary-rgb),0.20)', color: 'var(--color-primary)', border: '1px solid rgba(var(--color-primary-rgb),0.30)' }}>
+          style={{ background: 'var(--badge-bg-on-gradient)', color: 'var(--text-on-gradient)', border: '1px solid var(--badge-border-on-gradient)' }}>
           Why Riva?
         </span>
-        <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl"
+          style={{ color: 'var(--text-on-gradient)' }}>
           Everything you need for a{' '}
           <motion.span
-            animate={{ color: ['#4ade80', '#86efac', '#4ade80'] }}
+            animate={{ color: ['var(--gradient-text-accent)', 'var(--text-on-gradient)', 'var(--gradient-text-accent)'] }}
             transition={{ duration: 2.5, repeat: Infinity }}>
             perfect invite
           </motion.span>
         </h2>
-        <p className="mt-4 text-lg text-green-200 max-w-2xl mx-auto">
+        <p className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-on-gradient-muted)' }}>
           From animated themes to real-time RSVP tracking — we've thought of everything.
         </p>
-        <p className="mt-2 text-sm text-green-300/60">💡 Tap any card to see more details</p>
+        <p className="mt-2 text-sm" style={{ color: 'var(--text-on-gradient-subtle)' }}>💡 Tap any card to see more details</p>
       </motion.div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mt-12">
@@ -154,8 +155,8 @@ const Features: React.FC = () => {
           onClick={() => navigate(dest)}
           whileHover={{ scale: 1.05, y: -3 }}
           whileTap={{ scale: 0.96 }}
-          className="relative inline-flex items-center gap-2 rounded-full px-10 py-4 text-sm font-black text-white overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(10px)' }}>
+          className="relative inline-flex items-center gap-2 rounded-full px-10 py-4 text-sm font-black overflow-hidden"
+          style={{ background: 'var(--badge-bg-on-gradient)', border: '2px solid var(--border-on-gradient)', backdropFilter: 'blur(10px)', color: 'var(--text-on-gradient)' }}>
           <motion.span className="absolute inset-0 rounded-full"
             animate={{ boxShadow: ['0 0 0 0 rgba(255,255,255,0.3)','0 0 0 14px rgba(255,255,255,0)','0 0 0 0 rgba(255,255,255,0)'] }}
             transition={{ duration: 2, repeat: Infinity }} />

@@ -1,13 +1,16 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getPublicInvitationHtml, getPublicInvitationMeta } from '../../api/invitation';
+import { API_ORIGIN } from '../../api/client';
 import RsvpCard from '../../components/RsvpCard';
 import ShareModal from '../../components/ShareModal';
 
 const PublicInvitePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [srcDoc,       setSrcDoc]       = useState<string | null>(null);
+  const [blobUrl,      setBlobUrl]      = useState('');
+  const blobRef = useRef('');
   const [title,        setTitle]        = useState<string>('Digital Invitation');
   const [error,        setError]        = useState<string | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -20,10 +23,10 @@ const PublicInvitePage: React.FC = () => {
       getPublicInvitationHtml(slug),
       getPublicInvitationMeta(slug).catch(() => null),
     ]).then(([html, meta]) => {
-      setSrcDoc(html);
+      const htmlWithBase = html.replace('<head>', `<head><base href="${API_ORIGIN}/">`);
+      setSrcDoc(htmlWithBase);
       if (meta?.title) setTitle(meta.title);
 
-      // Inject Open Graph + social meta tags dynamically
       const t = meta?.title ?? 'Digital Invitation';
       document.title = `${t} — Riva Invitations`;
       const setMeta = (prop: string, content: string, attr = 'property') => {
@@ -44,6 +47,16 @@ const PublicInvitePage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  // Blob URL gives the iframe a real origin so Google Maps / third-party embeds work
+  useEffect(() => {
+    if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+    if (!srcDoc) { setBlobUrl(''); blobRef.current = ''; return; }
+    const url = URL.createObjectURL(new Blob([srcDoc], { type: 'text/html' }));
+    blobRef.current = url;
+    setBlobUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [srcDoc]);
+
   if (loading) return (
     <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a)' }}
       className="flex min-h-screen items-center justify-center">
@@ -61,7 +74,7 @@ const PublicInvitePage: React.FC = () => {
     </div>
   );
 
-  if (error || !srcDoc) return (
+  if (error || !blobUrl) return (
     <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)' }}
       className="flex min-h-screen items-center justify-center p-4">
       <div className="card-green p-10 text-center max-w-md">
@@ -103,15 +116,14 @@ const PublicInvitePage: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}>
         <iframe
-          srcDoc={srcDoc}
+          src={blobUrl}
           className="w-full border-0"
           style={{ minHeight: '80vh', display: 'block' }}
           title="Digital Invitation"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
         />
       </motion.div>
 
-      {/* RSVP card — below the invitation */}
+      {/* RSVP card */}
       {slug && (
         <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#0f172a)' }} className="pb-12">
           <div className="text-center pt-8 pb-2">
@@ -123,11 +135,7 @@ const PublicInvitePage: React.FC = () => {
 
       {/* Share Modal */}
       {showShare && (
-        <ShareModal
-          url={publicUrl}
-          title={title}
-          onClose={() => setShowShare(false)}
-        />
+        <ShareModal url={publicUrl} title={title} onClose={() => setShowShare(false)} />
       )}
     </div>
   );

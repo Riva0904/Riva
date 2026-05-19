@@ -39,41 +39,45 @@ public class SubscriptionController : ControllerBase
         var template = await _templates.GetByIdAsync(req.TemplateId);
         if (template is null) return NotFound(new { hasAccess = false, reason = "Template not found" });
 
-        // Free templates are always accessible
+        // Free templates always accessible
         if (template.TierType == "Free")
             return Ok(new { hasAccess = true, reason = "Free template" });
 
-        // Check individual purchase
+        // Individual purchase overrides everything
         if (await _subs.HasPurchasedTemplateAsync(userId, req.TemplateId))
             return Ok(new { hasAccess = true, reason = "Purchased" });
 
-        // Check active subscription
         var sub = await _subs.GetActiveSubscriptionAsync(userId);
         if (sub is null)
-            return Ok(new { hasAccess = false, reason = "No access" });
+            return Ok(new { hasAccess = false, reason = "No active plan" });
 
-        // Yearly = unlimited templates
-        if (sub.BillingCycle == "Yearly")
+        // ── Plan hierarchy: Premium (Paid) > Pro > Free ───────────────
+
+        // ── Check publish limit (0 = unlimited) ──────────────────────────
+        var isMonthly = sub.BillingCycle == "Monthly";
+        var limit     = isMonthly
+            ? await _subs.GetMonthlyQuotaAsync(sub.PlanType)
+            : await _subs.GetYearlyQuotaAsync(sub.PlanType);
+
+        if (limit > 0)
         {
-            bool canAccess = template.TierType == "Paid"
-                ? sub.PlanType is "Paid" or "Pro"
-                : sub.PlanType == "Pro"; // Pro template requires Pro plan
-            return Ok(new { hasAccess = canAccess, reason = canAccess ? "Yearly plan" : "Upgrade to Pro" });
+            var used = await _subs.GetPublishCountAsync(userId, sub.StartDate, sub.EndDate);
+            if (used >= limit)
+                return Ok(new { hasAccess = false, reason = $"Publish limit reached ({used}/{limit}). Upgrade for more." });
         }
 
-        // Monthly = only templates in monthly pool
-        if (sub.BillingCycle == "Monthly")
+        // ── Tier access: Premium (Paid) = all templates; Pro = Free+Pro only ──
+
+        // Premium plan (Paid) — access ALL template tiers
+        if (sub.PlanType == "Paid")
+            return Ok(new { hasAccess = true, reason = "Premium plan" });
+
+        // Pro plan — Free + Pro templates only; Premium templates require upgrade
+        if (sub.PlanType == "Pro")
         {
-            bool planCovers = template.TierType == "Paid"
-                ? sub.PlanType is "Paid" or "Pro"
-                : sub.PlanType == "Pro";
-
-            if (!planCovers)
-                return Ok(new { hasAccess = false, reason = "Upgrade to Pro" });
-
-            var poolIds = await _subs.GetMonthlyPoolIdsAsync(sub.PlanType);
-            bool inPool = poolIds.Contains(req.TemplateId);
-            return Ok(new { hasAccess = inPool, reason = inPool ? "Monthly plan" : "Template not in your monthly plan" });
+            if (template.TierType == "Premium")
+                return Ok(new { hasAccess = false, reason = "Premium plan required for Premium templates" });
+            return Ok(new { hasAccess = true, reason = "Pro plan" });
         }
 
         return Ok(new { hasAccess = false, reason = "No active plan" });
@@ -180,38 +184,36 @@ public class SubscriptionController : ControllerBase
         });
     }
 
-    // ── Admin: manage monthly pool ─────────────────────────────────────
+    // ── Admin: plan settings (price + publish limit) ──────────────────
 
-    [HttpGet("admin/pool/{planType}")]
+    [HttpGet("admin/plan-settings")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetPool(string planType)
+    public async Task<IActionResult> GetAllPlanSettings()
     {
-        var ids          = await _subs.GetMonthlyPoolIdsAsync(planType);
-        var monthlyQuota = await _subs.GetMonthlyQuotaAsync(planType);
-        var yearlyQuota  = await _subs.GetYearlyQuotaAsync(planType);
-        return Ok(new { planType, templateIds = ids, monthlyQuota, yearlyQuota });
+        var (paidMonthlyPrice, paidYearlyPrice) = await _subs.GetPricesAsync("Paid");
+        var (proMonthlyPrice,  proYearlyPrice)  = await _subs.GetPricesAsync("Pro");
+        return Ok(new {
+            premium = new {
+                monthlyPrice = paidMonthlyPrice, yearlyPrice  = paidYearlyPrice,
+                monthlyLimit = await _subs.GetMonthlyQuotaAsync("Paid"),
+                yearlyLimit  = await _subs.GetYearlyQuotaAsync("Paid"),
+            },
+            pro = new {
+                monthlyPrice = proMonthlyPrice,  yearlyPrice  = proYearlyPrice,
+                monthlyLimit = await _subs.GetMonthlyQuotaAsync("Pro"),
+                yearlyLimit  = await _subs.GetYearlyQuotaAsync("Pro"),
+            },
+        });
     }
 
-    [HttpPost("admin/yearly-quota")]
+    [HttpPost("admin/plan-settings")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SetYearlyQuota([FromBody] SetYearlyQuotaRequest req)
+    public async Task<IActionResult> SavePlanSettings([FromBody] SavePlanSettingsRequest req)
     {
-        await _subs.SetYearlyQuotaAsync(req.PlanType, req.YearlyQuota);
-        return Ok(new { message = $"{req.PlanType} yearly quota set to {(req.YearlyQuota == 0 ? "unlimited" : req.YearlyQuota.ToString())}." });
-    }
-
-    [HttpPost("admin/pool")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> SetPool([FromBody] SetPoolRequest req)
-    {
-        if (req.MonthlyQuota > 0)
-            await _subs.SetMonthlyQuotaAsync(req.PlanType, req.MonthlyQuota);
-
-        if (req.TemplateIds.Count > req.MonthlyQuota && req.MonthlyQuota > 0)
-            return BadRequest(new { message = $"Selected {req.TemplateIds.Count} templates exceed the quota of {req.MonthlyQuota}." });
-
-        await _subs.SetMonthlyPoolAsync(req.PlanType, req.TemplateIds);
-        return Ok(new { message = $"{req.PlanType} monthly pool updated — {req.TemplateIds.Count} templates, quota: {req.MonthlyQuota}." });
+        await _subs.SetPricesAsync(req.PlanType, req.MonthlyPrice, req.YearlyPrice);
+        await _subs.SetMonthlyQuotaAsync(req.PlanType, req.MonthlyLimit);
+        await _subs.SetYearlyQuotaAsync(req.PlanType, req.YearlyLimit);
+        return Ok(new { message = "Plan settings saved." });
     }
 
     // ── Admin: all subscriptions ───────────────────────────────────────
@@ -230,5 +232,10 @@ public class SubscriptionController : ControllerBase
 public class CheckAccessRequest      { public int TemplateId { get; set; } }
 public class RecordPurchaseRequest   { public int TemplateId { get; set; } public decimal Amount { get; set; } public string? RazorpayPaymentId { get; set; } }
 public class RecordSubscriptionRequest { public string PlanType { get; set; } = "Paid"; public string BillingCycle { get; set; } = "Monthly"; public string? RazorpayPaymentId { get; set; } }
-public class SetPoolRequest          { public string PlanType { get; set; } = "Paid"; public List<int> TemplateIds { get; set; } = new(); public int MonthlyQuota { get; set; } = 30; }
-public class SetYearlyQuotaRequest  { public string PlanType { get; set; } = "Paid"; public int YearlyQuota { get; set; } = 0; }
+public class SavePlanSettingsRequest {
+    public string PlanType    { get; set; } = "Paid";
+    public decimal MonthlyPrice { get; set; }
+    public decimal YearlyPrice  { get; set; }
+    public int MonthlyLimit   { get; set; }   // 0 = unlimited
+    public int YearlyLimit    { get; set; }   // 0 = unlimited
+}

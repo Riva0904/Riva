@@ -1,10 +1,7 @@
-import { apiFetch } from './client';
-
-const API_BASE    = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
-const BACKEND_BASE = API_BASE.replace(/\/api\/?$/, '');
+import { apiFetch, API_BASE, API_ORIGIN } from './client';
 
 const toAbsoluteUrl = (url: string): string =>
-  url.startsWith('http') ? url : BACKEND_BASE + (url.startsWith('/') ? '' : '/') + url;
+  url.startsWith('http') ? url : API_ORIGIN + (url.startsWith('/') ? '' : '/') + url;
 
 export interface UserProfile {
   id: number;

@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getTemplates, type TemplateListItem, type TemplateTier } from '../../api/templates';
 import { getCategories, type CategoryDto } from '../../api/categories';
 import TemplatePreviewModal from '../../components/TemplatePreviewModal';
 import TemplatePaymentModal from '../../components/TemplatePaymentModal';
 import { handleUseTemplate } from '../../utils/templateAccess';
-import { getStoredAuthToken } from '../../api/client';
-import { getStoredRole, getStoredUsername } from '../../api/auth';
+import { getStoredAuthToken, API_ORIGIN } from '../../api/client';
+import { getStoredRole, getStoredUsername, getStoredDisplayName } from '../../api/auth';
+import { getUserProfile, type UserProfile } from '../../api/user';
 import { useWishlist } from '../../hooks/useWishlist';
 
-const API_ORIGIN = (import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api').replace(/\/api$/, '');
 const imgSrc = (u: string | null | undefined) => u ? (u.startsWith('/') ? `${API_ORIGIN}${u}` : u) : '';
 
 const CAT_BG: Record<string, string> = {
@@ -50,10 +50,17 @@ const Skeleton = () => (
 
 // ── Navbar (mini, reused) ─────────────────────────────────────────────────────
 const PageNav: React.FC = () => {
-  const navigate   = useNavigate();
-  const isLoggedIn = !!getStoredAuthToken();
-  const role       = getStoredRole();
-  const name       = getStoredUsername() ?? '';
+  const navigate       = useNavigate();
+  const isLoggedIn     = !!getStoredAuthToken();
+  const role           = getStoredRole();
+  const storedName     = getStoredDisplayName() ?? getStoredUsername() ?? '';
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (isLoggedIn) getUserProfile().then(setProfile).catch(() => {});
+  }, [isLoggedIn]);
+
+  const name = profile?.displayName || profile?.username || storedName;
 
   const navLinks = [
     { label: 'Home',      action: () => navigate('/') },
@@ -112,7 +119,8 @@ const TemplateCard: React.FC<{
   onUse:       (t: TemplateListItem) => void;
   wishlisted:  boolean;
   onWishlist:  (t: TemplateListItem, e: React.MouseEvent) => void;
-}> = ({ t, idx, onPreview, onUse, wishlisted, onWishlist }) => {
+  isAdmin:     boolean;
+}> = ({ t, idx, onPreview, onUse, wishlisted, onWishlist, isAdmin }) => {
   const bg     = imgSrc(t.thumbnailUrl || t.previewImageUrl);
   const isPaid = t.tierType !== 'Free';
 
@@ -163,19 +171,21 @@ const TemplateCard: React.FC<{
           {t.categoryName}
         </span>
 
-        {/* Wishlist heart */}
-        <motion.button
-          whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
-          onClick={e => onWishlist(t, e)}
-          className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg"
-          style={{ background: wishlisted ? '#ef4444' : 'rgba(255,255,255,0.92)' }}>
-          <motion.span key={wishlisted ? 'on' : 'off'}
-            initial={{ scale: 0.5 }} animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-            className="text-sm leading-none">
-            {wishlisted ? '❤️' : '🤍'}
-          </motion.span>
-        </motion.button>
+        {/* Wishlist heart — only for regular users */}
+        {!isAdmin && (
+          <motion.button
+            whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
+            onClick={e => onWishlist(t, e)}
+            className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg"
+            style={{ background: wishlisted ? '#ef4444' : 'rgba(255,255,255,0.92)' }}>
+            <motion.span key={wishlisted ? 'on' : 'off'}
+              initial={{ scale: 0.5 }} animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+              className="text-sm leading-none">
+              {wishlisted ? '❤️' : '🤍'}
+            </motion.span>
+          </motion.button>
+        )}
       </div>
 
       {/* Body */}
@@ -185,19 +195,28 @@ const TemplateCard: React.FC<{
           {isPaid ? `₹${t.price} one-time · or subscribe` : 'Free forever'}
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => onPreview(t)}
+          <button onClick={() => onPreview(t)}
             className="flex-1 rounded-xl border py-2 text-xs font-black transition hover:border-green-400 hover:text-green-700"
             style={{ borderColor: 'var(--border-base)', color: 'var(--text-body)' }}>
             Preview →
           </button>
-          <motion.button
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-            onClick={() => onUse(t)}
-            className="flex-1 rounded-xl py-2 text-xs font-black text-white transition"
-            style={{ background: 'var(--color-gradient)' }}>
-            {isPaid ? '🔒 Get Access' : '✨ Use Free'}
-          </motion.button>
+          {/* Admin sees "Edit" button; users see "Use/Get Access" */}
+          {isAdmin ? (
+            <motion.a href="/admin"
+              whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+              className="flex-1 rounded-xl py-2 text-xs font-black text-white transition text-center"
+              style={{ background: 'var(--color-gradient)' }}>
+              ✏️ Manage
+            </motion.a>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+              onClick={() => onUse(t)}
+              className="flex-1 rounded-xl py-2 text-xs font-black text-white transition"
+              style={{ background: 'var(--color-gradient)' }}>
+              {isPaid ? '🔒 Get Access' : '✨ Use Free'}
+            </motion.button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -207,15 +226,38 @@ const TemplateCard: React.FC<{
 // ── Page ──────────────────────────────────────────────────────────────────────
 const TemplatesPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isAdmin = getStoredRole() === 'Admin';
   const { wishlistIds, toggleWishlist } = useWishlist();
   const [allTpls,     setAllTpls]     = useState<TemplateListItem[]>([]);
   const [categories,  setCategories]  = useState<CategoryDto[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [tierFilter,  setTierFilter]  = useState<TemplateTier | 'all'>('all');
   const [catFilter,   setCatFilter]   = useState<number | 'all'>('all');
   const [search,      setSearch]      = useState('');
   const [previewItem, setPreviewItem] = useState<TemplateListItem | null>(null);
   const [payTemplate, setPayTemplate] = useState<TemplateListItem | null>(null);
+
+  // Ref to the template grid area (used as scroll target on mobile filter change)
+  const gridTopRef = useRef<HTMLDivElement>(null);
+  // Ref to the search bar — when filter changes on mobile, scroll HERE (search stays visible at top)
+  const searchRef  = useRef<HTMLDivElement>(null);
+
+  // Initialise tier filter from ?tier= query param (e.g. from Pricing page CTA buttons)
+  const urlTier = searchParams.get('tier') as TemplateTier | null;
+  const [tierFilter, setTierFilter] = useState<TemplateTier | 'all'>(
+    urlTier && ['Free','Premium','Pro'].includes(urlTier) ? urlTier : 'all'
+  );
+
+  // Scroll to top on every navigation to this page
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, []);
+
+  // On mobile: when filter changes, scroll so the SEARCH BAR is at the top —
+  // this keeps search visible and template results show immediately below it
+  useEffect(() => {
+    if (searchRef.current && window.innerWidth < 768) {
+      searchRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [catFilter, tierFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -263,28 +305,36 @@ const TemplatesPage: React.FC = () => {
             Free templates are instantly usable — Premium & Pro require a plan or one-time purchase.
           </p>
 
-          {/* Search */}
-          <div className="relative max-w-md mx-auto">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          {/* Search — this is the scroll anchor on mobile filter change */}
+          <div className="relative max-w-md mx-auto" ref={searchRef}>
+            {/* Left icon — inset-y-0 flex items-center guarantees perfect vertical centering */}
+            <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
+              <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-subtle)' }}
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </div>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search templates by name or category…"
-              className="w-full rounded-2xl border-2 pl-10 pr-4 py-3 text-sm outline-none transition-all"
+              className="w-full rounded-2xl border-2 pl-10 pr-9 py-3 text-sm outline-none transition-all"
               style={{ borderColor: 'var(--border-base)', background: 'var(--bg-page)', color: 'var(--text-heading)' }}
               onFocus={e => e.currentTarget.style.borderColor = 'var(--color-primary)'}
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-base)'} />
+            {/* Right clear button */}
             {search && (
-              <button onClick={() => setSearch('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold">✕</button>
+              <div className="absolute inset-y-0 right-3 flex items-center">
+                <button onClick={() => setSearch('')}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-sm leading-none">✕</button>
+              </div>
             )}
           </div>
         </motion.div>
       </div>
 
-      {/* Filters */}
-      <div className="sticky top-[65px] z-30 px-4 py-3 border-b"
+      {/* ── Desktop-only top filter bar (hidden on mobile) ── */}
+      <div className="hidden md:block sticky top-[65px] z-30 px-4 py-3 border-b"
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border-base)' }}>
         <div className="mx-auto max-w-7xl flex flex-wrap items-center gap-2">
-          {/* Tier */}
           <div className="flex items-center gap-1.5 bg-slate-100 rounded-xl p-1">
             {TIER_FILTERS.map(f => (
               <button key={f.key} onClick={() => setTierFilter(f.key as TemplateTier | 'all')}
@@ -294,58 +344,112 @@ const TemplatesPage: React.FC = () => {
               </button>
             ))}
           </div>
-
-          {/* Category */}
           <select value={catFilter === 'all' ? '' : catFilter}
             onChange={e => setCatFilter(e.target.value ? Number(e.target.value) : 'all')}
             className="rounded-xl border px-3 py-2 text-xs font-bold outline-none"
             style={{ borderColor: 'var(--border-base)', background: 'var(--bg-card)', color: 'var(--text-body)' }}>
             <option value="">All Categories</option>
-            {categories.map(c => (
-              <option key={c.categoryId} value={c.categoryId}>{c.name}</option>
-            ))}
+            {categories.map(c => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
           </select>
-
           <span className="ml-auto text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
             {loading ? 'Loading…' : `${displayed.length} template${displayed.length !== 1 ? 's' : ''} found`}
           </span>
         </div>
       </div>
 
-      {/* Grid */}
-      <main className="px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} />)}
-              </motion.div>
-            ) : displayed.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="text-center py-24">
-                <p className="text-5xl mb-4">🎨</p>
-                <p className="font-black text-lg mb-2" style={{ color: 'var(--text-heading)' }}>No templates found</p>
-                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Try a different filter or search term</p>
-                <button onClick={() => { setTierFilter('all'); setCatFilter('all'); setSearch(''); }}
-                  className="rounded-full px-6 py-2.5 text-sm font-black text-white"
-                  style={{ background: 'var(--color-gradient)' }}>
-                  Clear Filters
+      {/* ── Main content — sidebar + grid ── */}
+      <main className="mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+        <div className="flex gap-4">
+
+          {/* ── LEFT SIDEBAR — sticky filters (visible on all sizes) ── */}
+          <aside className="flex-shrink-0 w-[72px] sm:w-24 md:w-44"
+            style={{ position: 'sticky', top: 64, height: 'fit-content', alignSelf: 'flex-start' }}>
+
+            {/* Category filter */}
+            <p className="text-[10px] font-black tracking-widest uppercase mb-2 hidden md:block"
+              style={{ color: 'var(--text-muted)' }}>Category</p>
+            <div className="flex flex-col gap-1.5 mb-4">
+              {/* All */}
+              <button onClick={() => setCatFilter('all')}
+                className="flex flex-col md:flex-row items-center gap-1 rounded-xl px-1.5 py-3 w-full text-center transition-all"
+                style={catFilter === 'all'
+                  ? { background: 'var(--color-gradient)', color: 'white' }
+                  : { background: 'var(--bg-card)', border: '1.5px solid var(--border-base)', color: 'var(--text-body)' }}>
+                <span className="text-xl leading-none">✨</span>
+                <span className="text-[10px] font-black leading-tight mt-0.5">All</span>
+              </button>
+              {categories.map(c => (
+                <button key={c.categoryId} onClick={() => setCatFilter(c.categoryId)}
+                  className="flex flex-col md:flex-row items-center gap-1 rounded-xl px-1.5 py-3 w-full text-center transition-all"
+                  style={catFilter === c.categoryId
+                    ? { background: catBg(c.name), color: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }
+                    : { background: 'var(--bg-card)', border: '1.5px solid var(--border-base)', color: 'var(--text-body)' }}>
+                  <span className="text-xl leading-none">{catEmoji(c.name)}</span>
+                  <span className="text-[10px] font-black leading-tight mt-0.5 md:ml-1 truncate w-full text-center md:text-left">
+                    {c.name}
+                  </span>
                 </button>
-              </motion.div>
-            ) : (
-              <motion.div key={`${tierFilter}-${catFilter}`}
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {displayed.map((t, i) => (
-                  <TemplateCard key={t.templateId} t={t} idx={i}
-                    onPreview={setPreviewItem} onUse={doUse}
-                    wishlisted={wishlistIds.has(t.templateId)}
-                    onWishlist={(tpl, e) => toggleWishlist(tpl.templateId, e)} />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ))}
+            </div>
+
+            {/* Tier filter */}
+            <p className="text-[10px] font-black tracking-widest uppercase mb-2 hidden md:block"
+              style={{ color: 'var(--text-muted)' }}>Plan</p>
+            <div className="flex flex-col gap-1.5">
+              {TIER_FILTERS.map(f => (
+                <button key={f.key} onClick={() => setTierFilter(f.key as TemplateTier | 'all')}
+                  className="flex flex-col md:flex-row items-center gap-1 rounded-xl px-1.5 py-3 w-full text-center transition-all"
+                  style={tierFilter === f.key
+                    ? { background: 'var(--color-gradient)', color: 'white', boxShadow: '0 4px 12px rgba(var(--color-primary-rgb),0.25)' }
+                    : { background: 'var(--bg-card)', border: '1.5px solid var(--border-base)', color: 'var(--text-body)' }}>
+                  <span className="text-xl leading-none">{f.icon}</span>
+                  <span className="text-[10px] font-black mt-0.5 md:ml-1">{f.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Count */}
+            <p className="text-[10px] text-center mt-3 font-semibold" style={{ color: 'var(--text-muted)' }}>
+              {loading ? '…' : `${displayed.length} found`}
+            </p>
+          </aside>
+
+          {/* ── RIGHT — template grid ── */}
+          <div className="flex-1 min-w-0" ref={gridTopRef}>
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div key="sk" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} />)}
+                </motion.div>
+              ) : displayed.length === 0 ? (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="text-center py-20">
+                  <p className="text-4xl mb-3">🎨</p>
+                  <p className="font-black text-base mb-2" style={{ color: 'var(--text-heading)' }}>No templates found</p>
+                  <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Try a different filter</p>
+                  <button onClick={() => { setTierFilter('all'); setCatFilter('all'); setSearch(''); }}
+                    className="rounded-full px-5 py-2 text-xs font-black text-white"
+                    style={{ background: 'var(--color-gradient)' }}>
+                    Clear Filters
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div key={`${tierFilter}-${catFilter}`}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {displayed.map((t, i) => (
+                    <TemplateCard key={t.templateId} t={t} idx={i}
+                      onPreview={setPreviewItem} onUse={doUse}
+                      wishlisted={wishlistIds.has(t.templateId)}
+                      onWishlist={(tpl, e) => toggleWishlist(tpl.templateId, e)}
+                      isAdmin={isAdmin} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
         </div>
       </main>
 

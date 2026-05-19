@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Riva.Service.Repository;
@@ -12,7 +13,7 @@ public class WishlistController : ControllerBase
     private readonly IWishlistRepository _repo;
     public WishlistController(IWishlistRepository repo) => _repo = repo;
 
-    private int CurrentUserId() => int.Parse(User.FindFirst("id")?.Value ?? "0");
+    private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
     [HttpGet]
     public async Task<IActionResult> Get()

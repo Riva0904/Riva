@@ -1,6 +1,4 @@
-import { apiFetch } from './client';
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
+import { apiFetch, API_BASE } from './client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,7 +7,7 @@ export interface SchemaField {
    *  Existing templates use "key"; new ones may use "name". Both are supported. */
   key?: string;
   name?: string;
-  type: 'text' | 'textarea' | 'date' | 'image' | 'video' | 'audio' | 'color' | 'select' | 'checkbox' | 'url';
+  type: 'text' | 'textarea' | 'date' | 'time' | 'image' | 'video' | 'audio' | 'color' | 'select' | 'checkbox' | 'url';
   label: string;
   placeholder?: string;
   required?: boolean;

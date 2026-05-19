@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("hashpw")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b3475cc9ab2592e7476011f7d1aa031ffcd59b0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ee4e9f36180936695b33e2e1c0980993f90e761d")]
 [assembly: System.Reflection.AssemblyProductAttribute("hashpw")]
 [assembly: System.Reflection.AssemblyTitleAttribute("hashpw")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

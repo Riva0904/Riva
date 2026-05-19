@@ -166,6 +166,20 @@ public class TemplateRepository : ITemplateRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task UpdatePriceAsync(int templateId, decimal? price)
+    {
+        const string sql = @"
+            UPDATE Templates SET Price = @Price, IsPaid = @IsPaid, UpdatedDate = @UpdatedDate
+            WHERE TemplateId = @TemplateId";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@TemplateId",  templateId);
+        cmd.Parameters.AddWithValue("@Price",       (object?)price ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@IsPaid",      price.HasValue && price > 0);
+        cmd.Parameters.AddWithValue("@UpdatedDate", DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private static Template Map(SqlDataReader r) => new()

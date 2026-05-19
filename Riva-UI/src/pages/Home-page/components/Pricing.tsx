@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { getStoredAuthToken } from '../../../api/client';
+import { getMyPlan, type MyPlan } from '../../../api/subscriptions';
 
 const isLoggedIn = () => !!getStoredAuthToken();
 
@@ -18,46 +19,47 @@ const plans = [
       'WhatsApp & email sharing',
       'QR code generation',
       'Mobile-friendly invite pages',
+      'Includes Riva branding',
     ],
     cta: 'Start Free',
     ctaStyle: 'gradient',
     href: () => isLoggedIn() ? '/templates' : '/register',
   },
   {
-    id: 2, name: 'Premium', badge: '⭐ Most Popular',
-    monthly: '₹799', yearly: '₹2,499', period: '/month',
-    desc: 'For unforgettable events with images & animations',
-    premium: true,
+    id: 2, name: 'Pro', badge: null,
+    monthly: '₹1,499', yearly: '₹3,499', period: '/month',
+    desc: 'Animated Pro templates — maps, videos & more',
+    premium: false,
     features: [
       'Everything in Free',
+      'Pro animated templates',
+      'Google Maps integration',
+      'Video embed (30-40 sec)',
+      'Countdown timer',
+      'Full RSVP forms',
+      'Up to 29 Pro templates/month',
+      '5 Premium templates/year (yearly plan)',
+      'Includes Riva branding',
+    ],
+    cta: 'Go Pro',
+    ctaStyle: 'gradient',
+  },
+  {
+    id: 3, name: 'Premium', badge: '⭐ Top Plan',
+    monthly: '₹799', yearly: '₹2,499', period: '/month',
+    desc: 'Unlimited access to ALL templates',
+    premium: true,
+    features: [
+      'Everything in Pro',
+      'Unlimited access to ALL templates',
       'Premium animated templates',
       'Background images & GIF effects',
       'Photo gallery section',
       'RSVP analytics dashboard',
       'Remove Riva branding',
-      '30 templates/month pool',
     ],
     cta: 'Choose Premium',
     ctaStyle: 'white',
-    href: () => isLoggedIn() ? '/subscription' : '/register',
-  },
-  {
-    id: 3, name: 'Pro', badge: null,
-    monthly: '₹1,499', yearly: '₹3,499', period: '/month',
-    desc: 'Full mini-websites with maps, videos & more',
-    premium: false,
-    features: [
-      'Everything in Premium',
-      'Google Maps integration',
-      'Video embed (30-40 sec)',
-      'Countdown timer',
-      'Full RSVP forms',
-      'Guest management',
-      'Unlimited Pro templates/year',
-    ],
-    cta: 'Go Pro',
-    ctaStyle: 'gradient',
-    href: () => isLoggedIn() ? '/subscription' : '/register',
   },
 ];
 
@@ -67,9 +69,41 @@ const cardVariants = {
 };
 
 const Pricing: React.FC = () => {
-  const navigate   = useNavigate();
-  const isLoggedIn = !!getStoredAuthToken();
+  const navigate    = useNavigate();
+  const loggedIn    = !!getStoredAuthToken();
   const [yearly, setYearly] = useState(false);
+  const [myPlan, setMyPlan] = useState<MyPlan | null>(null);
+
+  useEffect(() => {
+    if (loggedIn) {
+      getMyPlan().then(setMyPlan).catch(() => {});
+    }
+  }, [loggedIn]);
+
+  const activePlan = myPlan?.subscription?.status === 'Active'
+    ? myPlan.subscription.planType   // "Premium" | "Pro"
+    : null;
+
+  /** Smart navigation based on plan ownership + selected billing cycle */
+  const handlePlanClick = (planName: string) => {
+    if (!loggedIn) { navigate('/register'); return; }
+    if (planName === 'Free') { navigate('/templates?tier=Free'); return; }
+    const cycle = yearly ? 'yearly' : 'monthly';
+    // Pro
+    if (planName === 'Pro') {
+      activePlan === 'Pro' || activePlan === 'Premium'
+        ? navigate('/templates?tier=Pro')
+        : navigate(`/payment?plan=Pro&cycle=${cycle}`);
+      return;
+    }
+    // Premium
+    if (planName === 'Premium') {
+      activePlan === 'Premium'
+        ? navigate('/templates?tier=Premium')
+        : navigate(`/payment?plan=Premium&cycle=${cycle}`);
+      return;
+    }
+  };
 
   return (
     <section id="pricing" className="px-4 py-20 sm:px-6 lg:px-8" style={{ background: 'var(--bg-page)' }}>
@@ -164,9 +198,23 @@ const Pricing: React.FC = () => {
                 ))}
               </ul>
 
+              {/* Active plan indicator */}
+              {loggedIn && (
+                (p.name === 'Pro'     && activePlan === 'Pro') ||
+                (p.name === 'Premium' && activePlan === 'Premium')
+              ) && (
+                <div className="mb-2 text-center">
+                  <span className="rounded-full px-3 py-1 text-[11px] font-black"
+                    style={{ background: p.premium ? 'rgba(255,255,255,0.25)' : 'rgba(var(--color-primary-rgb),0.12)',
+                             color: p.premium ? 'white' : 'var(--color-primary)' }}>
+                    ✓ Your Active Plan
+                  </span>
+                </div>
+              )}
+
               {/* CTA */}
               <motion.button
-                onClick={() => navigate(p.href())}
+                onClick={() => handlePlanClick(p.name)}
                 whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}
                 className="flex w-full items-center justify-center rounded-full py-3.5 text-sm font-black transition mt-auto relative overflow-hidden"
                 style={p.ctaStyle === 'white'
@@ -174,36 +222,46 @@ const Pricing: React.FC = () => {
                   : { background: 'var(--color-gradient)', color: 'white' }}>
                 {p.premium && (
                   <motion.span className="absolute inset-0 rounded-full"
-                    animate={{ boxShadow: ['0 0 0 0 rgba(22,163,74,0.4)','0 0 0 10px rgba(22,163,74,0)','0 0 0 0 rgba(22,163,74,0)'] }}
+                    animate={{ boxShadow: ['0 0 0 0 rgba(var(--color-primary-rgb),0.4)','0 0 0 10px rgba(var(--color-primary-rgb),0)','0 0 0 0 rgba(var(--color-primary-rgb),0)'] }}
                     transition={{ duration: 2, repeat: Infinity }} />
                 )}
                 <span className="relative z-10">
-                  {isLoggedIn && p.id === 1 ? '🆓 Browse Free Templates' : p.cta}
+                  {/* Smart label based on active plan */}
+                  {p.name === 'Free'    && '🆓 Browse Free Templates'}
+                  {p.name === 'Pro'     && (activePlan === 'Pro' || activePlan === 'Premium' ? '🚀 Browse Pro Templates' : 'Go Pro')}
+                  {p.name === 'Premium' && (activePlan === 'Premium' ? '💎 Browse Premium Templates' : 'Choose Premium')}
                 </span>
               </motion.button>
             </motion.div>
           ))}
         </div>
 
-        {/* Per-template note */}
+        {/* Curiosity hook */}
         <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }} transition={{ delay: 0.4 }}
-          className="mt-10 rounded-2xl p-5 text-center"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)' }}>
-          <p className="text-sm font-black mb-2" style={{ color: 'var(--text-heading)' }}>
-            💡 Prefer one-time purchases?
-          </p>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Premium templates from <strong style={{ color: 'var(--color-primary)' }}>₹49</strong> ·
-            Pro templates from <strong style={{ color: 'var(--color-primary)' }}>₹149</strong> ·
-            Pay once, use forever. No subscription needed.
+          className="mt-10 rounded-2xl p-6 text-center relative overflow-hidden"
+          style={{ background: 'var(--color-gradient)' }}>
+          {/* Shimmer */}
+          <motion.div
+            className="absolute inset-0 opacity-20"
+            style={{ background: 'linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.5) 50%,transparent 60%)', backgroundSize: '200% 100%' }}
+            animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }} />
+          <motion.p
+            animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 3, repeat: Infinity }}
+            className="text-base font-black relative z-10"
+            style={{ color: 'var(--text-on-gradient)' }}>
+            🎉 Over 5,000 invitations sent — and counting.
+          </motion.p>
+          <p className="text-sm mt-1 relative z-10" style={{ color: 'var(--text-on-gradient-muted)' }}>
+            Join hosts who created unforgettable moments. <span className="font-black">Your celebration deserves the best.</span>
           </p>
         </motion.div>
 
         <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
           transition={{ delay: 0.5 }} className="mt-6 text-center text-sm"
           style={{ color: 'var(--text-subtle)' }}>
-          All plans include free RSVP tracking, QR codes, and WhatsApp sharing. No credit card required to start.
+          All plans include free RSVP tracking, QR codes, and WhatsApp sharing.
         </motion.p>
       </div>
     </section>

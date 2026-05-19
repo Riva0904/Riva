@@ -6,8 +6,8 @@ import TemplatePreviewModal from '../../../components/TemplatePreviewModal';
 import TemplatePaymentModal from '../../../components/TemplatePaymentModal';
 import { handleUseTemplate } from '../../../utils/templateAccess';
 import { useWishlist } from '../../../hooks/useWishlist';
-
-const API_ORIGIN = (import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api').replace(/\/api$/, '');
+import { getStoredRole } from '../../../api/auth';
+import { API_ORIGIN } from '../../../api/client';
 const imgSrc = (u: string | null | undefined) => u ? (u.startsWith('/') ? `${API_ORIGIN}${u}` : u) : '';
 
 const CAT_BG: Record<string, string> = {
@@ -16,7 +16,7 @@ const CAT_BG: Record<string, string> = {
   'House warming': 'linear-gradient(135deg,#ff8c00,#e65c00)',
 };
 const CAT_EMOJI: Record<string, string> = { Birthday:'🎂', Wedding:'💍', 'House warming':'🏡' };
-const catBg    = (c: string) => CAT_BG[c]    ?? 'linear-gradient(135deg,#16a34a,#15803d)';
+const catBg    = (c: string) => CAT_BG[c]    ?? 'var(--color-gradient)';
 const catEmoji = (c: string) => CAT_EMOJI[c] ?? '🎉';
 
 const PER_PAGE   = 4;
@@ -90,20 +90,21 @@ const TemplateCard: React.FC<{
           {t.categoryName}
         </span>
 
-        {/* Wishlist heart */}
-        <motion.button
-          whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
-          onClick={e => onWishlist(t, e)}
-          className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg transition"
-          style={{ background: wishlisted ? '#ef4444' : 'rgba(255,255,255,0.9)' }}>
-          <motion.span
-            key={wishlisted ? 'on' : 'off'}
-            initial={{ scale: 0.6 }} animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-            className="text-sm leading-none">
-            {wishlisted ? '❤️' : '🤍'}
-          </motion.span>
-        </motion.button>
+        {/* Wishlist heart — only for regular users */}
+        {getStoredRole() !== 'Admin' && (
+          <motion.button
+            whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
+            onClick={e => onWishlist(t, e)}
+            className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg transition"
+            style={{ background: wishlisted ? '#ef4444' : 'rgba(255,255,255,0.9)' }}>
+            <motion.span key={wishlisted ? 'on' : 'off'}
+              initial={{ scale: 0.6 }} animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+              className="text-sm leading-none">
+              {wishlisted ? '❤️' : '🤍'}
+            </motion.span>
+          </motion.button>
+        )}
       </div>
 
       {/* Footer */}
@@ -280,11 +281,11 @@ const Templates: React.FC = () => {
               whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
               onClick={() => navigate('/templates')}
               className="inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-black text-white"
-              style={{ background: 'var(--color-gradient)', boxShadow: '0 8px 24px rgba(22,163,74,0.35)' }}>
+              style={{ background: 'var(--color-gradient)', boxShadow: '0 8px 24px rgba(var(--color-primary-rgb),0.35)' }}>
               🎨 Browse All Templates →
             </motion.button>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              15+ templates · Free, Premium & Pro
+              100+ templates · Free, Premium & Pro
             </p>
           </motion.div>
         </div>

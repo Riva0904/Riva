@@ -16,6 +16,10 @@ export async function login(req: LoginRequest): Promise<LoginResponse> {
   setAuthToken(res.token);
   localStorage.setItem('riva_username', res.username);
   localStorage.setItem('riva_email', res.email);
+  localStorage.removeItem('riva_wishlist_ids');
+  // Apply this user's saved dark/light preference immediately — no page refresh needed
+  const savedMode = localStorage.getItem(`riva_theme_${res.email}`) ?? 'light';
+  document.documentElement.setAttribute('data-theme', savedMode);
   return res;
 }
 
@@ -32,6 +36,7 @@ export async function verifyOtp(req: VerifyOtpRequest): Promise<{ message: strin
     setAuthToken(res.token);
     if (res.username) localStorage.setItem('riva_username', res.username);
     if (res.email)    localStorage.setItem('riva_email',    res.email);
+    localStorage.removeItem('riva_wishlist_ids'); // clear previous user's cache
   }
   return res;
 }
@@ -65,9 +70,29 @@ export async function getCurrentUser(): Promise<UserDto> {
 }
 
 export function logout() {
+  // Clear session before wiping email (we need email for the theme key)
+  const email = localStorage.getItem('riva_email');
   setAuthToken(null);
   localStorage.removeItem('riva_username');
+  localStorage.removeItem('riva_displayname');
   localStorage.removeItem('riva_email');
+  localStorage.removeItem('riva_wishlist_ids');
+  // Wipe old global theme key if it still exists from older sessions
+  localStorage.removeItem('riva_theme_mode');
+  // Reset the page to light mode immediately so the next user/guest sees the default
+  document.documentElement.setAttribute('data-theme', 'light');
+  // User's personal preference (riva_theme_${email}) is intentionally kept
+  // so it restores correctly when they log back in
+  void email; // suppress unused var warning
+}
+
+export function getStoredDisplayName(): string | null {
+  return localStorage.getItem('riva_displayname') || localStorage.getItem('riva_username');
+}
+
+export function setStoredDisplayName(name: string | null | undefined) {
+  if (name) localStorage.setItem('riva_displayname', name);
+  else localStorage.removeItem('riva_displayname');
 }
 
 export function getStoredUsername(): string | null {

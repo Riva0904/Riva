@@ -8,14 +8,16 @@ import {
 import { confirmSubscriptionUpgrade } from '../../api/subscription';
 import { getStoredAuthToken } from '../../api/client';
 
-declare global { interface Window { Razorpay: any; } }
+interface RazorpayPaymentResponse { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string; }
+interface RazorpayOptions { key: string; amount: number; currency: string; name: string; description?: string; order_id: string; handler: (r: RazorpayPaymentResponse) => void; prefill?: { name?: string; email?: string; contact?: string }; theme?: { color?: string }; }
+declare global { interface Window { Razorpay: new (opts: RazorpayOptions) => { open(): void }; } }
 
 type Step = 'details' | 'otp' | 'pay' | 'success';
 type Mode = 'template' | 'subscription';
 
-const PLAN_LABELS: Record<string, { name: string; priceInr: number }> = {
-  '2': { name: 'Premium', priceInr: 1590 },
-  '3': { name: 'Business', priceInr: 3750 },
+const PLAN_LABELS: Record<string, { name: string; monthlyPrice: number; yearlyPrice: number }> = {
+  'Pro':     { name: 'Pro',     monthlyPrice: 1499, yearlyPrice: 3499 },
+  'Premium': { name: 'Premium', monthlyPrice:  799, yearlyPrice: 2499 },
 };
 
 const stepVariants = {
@@ -28,14 +30,17 @@ const PaymentPage: React.FC = () => {
   const navigate       = useNavigate();
   const [params]       = useSearchParams();
 
-  const mode: Mode     = params.get('planId') ? 'subscription' : 'template';
-  const planId         = params.get('planId') ?? '';
+  const planParam      = params.get('plan') ?? params.get('planId') ?? '';
+  const cycle          = params.get('cycle') ?? 'monthly';          // 'monthly' | 'yearly'
+  const mode: Mode     = planParam ? 'subscription' : 'template';
   const templateId     = params.get('templateId') ?? '';
   const amountParam    = params.get('amount') ?? '';
   const templateName   = params.get('name') ?? 'Template';
 
-  const plan           = PLAN_LABELS[planId];
-  const amountInr      = mode === 'subscription' ? (plan?.priceInr ?? 0) : Number(amountParam);
+  const plan           = PLAN_LABELS[planParam];
+  const amountInr      = mode === 'subscription'
+    ? (cycle === 'yearly' ? (plan?.yearlyPrice ?? 0) : (plan?.monthlyPrice ?? 0))
+    : Number(amountParam);
 
   const [step,      setStep]      = useState<Step>('details');
   const [paymentId, setPaymentId] = useState<number | null>(null);
@@ -110,7 +115,7 @@ const PaymentPage: React.FC = () => {
             razorpaySignature:  response.razorpay_signature,
           });
           if (mode === 'subscription' && paymentId) {
-            await confirmSubscriptionUpgrade(paymentId, Number(planId));
+            await confirmSubscriptionUpgrade(paymentId, Number(planParam));
           }
           setStep('success');
         } catch {
@@ -185,9 +190,22 @@ const PaymentPage: React.FC = () => {
                       {mode === 'subscription' ? plan?.name : templateName}
                     </span>
                   </div>
+                  {mode === 'subscription' && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-semibold">Billing</span>
+                      <span className="font-black text-slate-800 capitalize">{cycle}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-semibold">Amount</span>
-                    <span className="font-black text-green-700">₹{amountInr.toLocaleString()}</span>
+                    <span className="font-black text-green-700">
+                      ₹{amountInr.toLocaleString()}
+                      {mode === 'subscription' && (
+                        <span className="text-slate-400 font-normal text-xs ml-1">
+                          /{cycle === 'yearly' ? 'year' : 'month'}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-semibold">Currency</span>

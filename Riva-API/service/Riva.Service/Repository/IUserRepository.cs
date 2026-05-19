@@ -15,5 +15,7 @@ public interface IUserRepository
     Task<(int freeUsed, int paidUsed)> GetTemplateUsageAsync(int userId);
     Task DeleteAsync(User user);
     Task SetVerifiedAsync(string email);
+    Task<bool> GetNotifyOnRsvpAsync(int userId);
+    Task UpdateNotifyOnRsvpAsync(int userId, bool notify);
     Task SaveChangesAsync();
 }

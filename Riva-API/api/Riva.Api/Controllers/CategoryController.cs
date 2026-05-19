@@ -64,6 +64,21 @@ public class CategoryController : ControllerBase
         return Ok(new { Message = "Category updated." });
     }
 
+    // DELETE /api/category/{id}
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var cat = await _categories.GetByIdAsync(id);
+        if (cat is null) return NotFound(new { Message = "Category not found." });
+
+        var deleted = await _categories.DeleteAsync(id);
+        if (!deleted)
+            return Conflict(new { Message = $"Cannot delete '{cat.Name}' — it has templates assigned. Remove or reassign templates first." });
+
+        return Ok(new { Message = $"Category '{cat.Name}' deleted." });
+    }
+
     // PATCH /api/category/{id}/toggle  — activate/deactivate
     [HttpPatch("{id:int}/toggle")]
     [Authorize(Roles = "Admin")]

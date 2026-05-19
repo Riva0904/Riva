@@ -12,6 +12,16 @@
   --color-primary-text:       #15803d;
   --color-gradient:           linear-gradient(135deg, #16a34a, #059669);
 
+  /* ── Text-on-gradient contrast (auto-computed by applyTheme, defaults for dark green) ── */
+  --text-on-gradient:         #ffffff;
+  --text-on-gradient-muted:   rgba(255,255,255,0.72);
+  --text-on-gradient-subtle:  rgba(255,255,255,0.45);
+  --border-on-gradient:       rgba(255,255,255,0.22);
+  --badge-bg-on-gradient:     rgba(255,255,255,0.14);
+  --badge-border-on-gradient: rgba(255,255,255,0.22);
+  --card-bg-on-gradient:      rgba(255,255,255,0.05);
+  --gradient-text-accent:     #86efac;
+
   /* ── Surface / text / border (light mode defaults) ── */
   --bg-page:      #f8fafc;
   --bg-surface:   #ffffff;

@@ -174,6 +174,31 @@ public class UserRepository : IUserRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<bool> GetNotifyOnRsvpAsync(int userId)
+    {
+        try
+        {
+            const string sql = "SELECT NotifyOnRsvp FROM Users WHERE Id = @Id";
+            await using var conn = await _db.GetOpenConnectionAsync();
+            await using var cmd  = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", userId);
+            var result = await cmd.ExecuteScalarAsync();
+            return result is bool b ? b : true;
+        }
+        catch { return false; } // column not yet migrated — default to no email (respect unchecked)
+    }
+
+    public async Task UpdateNotifyOnRsvpAsync(int userId, bool notify)
+    {
+        const string sql = "UPDATE Users SET NotifyOnRsvp = @Notify, UpdatedAt = @Now WHERE Id = @Id";
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id",     userId);
+        cmd.Parameters.AddWithValue("@Notify", notify);
+        cmd.Parameters.AddWithValue("@Now",    DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public Task SaveChangesAsync() => Task.CompletedTask;
 
     private static User Map(SqlDataReader r) => new()

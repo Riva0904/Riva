@@ -1,72 +1,79 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getStoredAuthToken } from '../../../api/client';
+import { getStoredRole } from '../../../api/auth';
 
-interface MobileMenuProps { isOpen: boolean; }
+interface MobileMenuProps { isOpen: boolean; onClose: () => void; }
 
 const NAV_LINKS = [
-  { label: 'Home',      href: '/' },
-  { label: 'Templates', href: '#templates' },
-  { label: 'Features',  href: '#features' },
-  { label: 'Pricing',   href: '#pricing' },
+  { label: '🏠 Home',      href: '/' },
+  { label: '🎨 Templates', href: '/templates' },
+  { label: '✨ Features',  href: '/#features' },
+  { label: '💰 Pricing',   href: '/#pricing' },
 ];
 
-const menuVariants = {
-  hidden: { opacity: 0, height: 0 },
-  visible: { opacity: 1, height: 'auto', transition: { duration: 0.25, ease: 'easeOut' as const, staggerChildren: 0.06, delayChildren: 0.05 } },
-  exit:   { opacity: 0, height: 0,     transition: { duration: 0.2,  ease: 'easeIn' as const } },
-};
+const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
+  const isLoggedIn = !!getStoredAuthToken();
+  const role       = getStoredRole();
+  const dashHref   = role === 'Admin' ? '/admin' : '/dashboard';
 
-const linkVariants = {
-  hidden:  { opacity: 0, x: -14 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.22 } },
-};
+  const handleNav = (href: string) => {
+    onClose();
+    if (href.includes('#')) {
+      const id = href.split('#')[1];
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 150);
+    }
+  };
 
-const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div
-        variants={menuVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className="overflow-hidden md:hidden">
-        <div className="border-b border-green-100 bg-white px-6 py-4 shadow-sm">
-          <nav className="flex flex-col gap-1">
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="md:hidden"
+          style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-base)', boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+
+          <nav className="px-4 py-3 flex flex-col gap-1">
             {NAV_LINKS.map(({ label, href }) => (
               <motion.a
                 key={label}
-                href={href}
-                variants={linkVariants}
-                whileHover={{ x: 6, backgroundColor: 'rgba(var(--color-primary-rgb),0.04)' }}
+                href={href.startsWith('/#') ? '#' + href.split('#')[1] : href}
+                onClick={() => handleNav(href)}
+                whileHover={{ x: 6 }}
+                whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                className="navbar-link block rounded-xl px-4 py-3">
+                className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-colors"
+                style={{ color: 'var(--text-body)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 {label}
               </motion.a>
             ))}
-
-            <motion.div
-              variants={linkVariants}
-              className="mt-2 flex flex-col gap-2 border-t border-green-100 pt-3">
-              <motion.a
-                href="/login"
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="btn-green-outline text-center">
-                Login
-              </motion.a>
-              <motion.a
-                href="/register"
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="btn-green text-center">
-                Get Started
-              </motion.a>
-            </motion.div>
           </nav>
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+
+          {/* Auth buttons */}
+          <div className="px-4 pb-4 pt-1 flex flex-col gap-2 border-t"
+            style={{ borderColor: 'var(--border-base)' }}>
+            {isLoggedIn ? (
+              <motion.a href={dashHref} onClick={onClose} whileTap={{ scale: 0.97 }}
+                className="btn-green text-center">
+                Go to Dashboard →
+              </motion.a>
+            ) : (
+              /* Login is shown in the navbar header on mobile — only show Get Started here */
+              <motion.a href="/register" onClick={onClose} whileTap={{ scale: 0.97 }}
+                className="btn-green text-center">
+                Get Started Free →
+              </motion.a>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 export default MobileMenu;

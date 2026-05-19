@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../api/client';
+import { apiFetch, API_ORIGIN } from '../../api/client';
+
+const toAbsoluteUrl = (url: string) => url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
 import {
   createInvitation, updateInvitation, publishInvitation,
   uploadMedia, getInvitationById,
@@ -73,12 +75,16 @@ const CreateInvitationPage: React.FC = () => {
           setMedia(inv.media);
           setFields(safeJson<SchemaField[]>(inv.schemaJson, []));
           setValues(saved);
-          setResetKey(k => k + 1);          // remount all FieldItems with saved values
+          setResetKey(k => k + 1);
           setTemplateHtml(inv.templateHtml);
           setTemplateCss(inv.templateCss ?? '');
-          setTemplateJs(inv.templateJs  ?? '');
           setTemplateName(inv.templateName);
           if (inv.status === 'Published') setPublishedUrl(`/invite/${inv.slug}`);
+
+          // Always use the CURRENT template JS so admin updates ({{tokens}}) take effect
+          apiFetch<TemplateDetail>(`template/${inv.templateId}`)
+            .then(t => setTemplateJs(t.templateJs ?? ''))
+            .catch(() => setTemplateJs(inv.templateJs ?? ''));
         })
         .catch(() => setError('Invitation not found.'))
         .finally(() => setLoading(false));
@@ -104,16 +110,50 @@ const CreateInvitationPage: React.FC = () => {
   const previewSrcDoc = useMemo(() => {
     if (!templateHtml) return '';
 
-    // Media URL map
+    // Media URL map — convert relative paths to absolute so srcDoc iframe can load them
     const mediaMap: Record<string, string> = {};
-    media.forEach(m => { mediaMap[m.fieldName] = m.fileUrl; });
+    media.forEach(m => { mediaMap[m.fieldName] = toAbsoluteUrl(m.fileUrl); });
 
-    // Replace {{token}} — keep token visible if not yet filled
-    const body = templateHtml.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      if (mediaMap[key])                              return mediaMap[key];
-      if (values[key] !== undefined && values[key] !== '') return escHtml(values[key]);
-      return match;   // keep {{token}} so user sees what still needs filling
-    });
+    // Resolve a token value — HTML context (escaped) or raw for embeds/media
+    const resolveHtml = (key: string, fallback: string) => {
+      if (mediaMap[key]) return mediaMap[key];
+      const v = values[key];
+      if (v !== undefined && v !== '') return v.trimStart().startsWith('<') ? v : escHtml(v);
+      return fallback;
+    };
+
+    // Resolve a token value — JS context (no HTML encoding, backslash-escape quotes)
+    const resolveJs = (key: string, fallback: string) => {
+      if (mediaMap[key]) return mediaMap[key].replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+      const v = values[key];
+      if (v !== undefined && v !== '') return v.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+      return fallback;
+    };
+
+    // Auto-replace entire `const templateData = {...}` object with user values.
+    // Works for both hardcoded templates AND {{token}} templates — no template update needed.
+    const injectTemplateData = (js: string): string => {
+      const startIdx = js.indexOf('const templateData');
+      if (startIdx === -1) return js;
+      const openBrace = js.indexOf('{', startIdx);
+      if (openBrace === -1) return js;
+      let depth = 1, i = openBrace + 1;
+      while (i < js.length && depth > 0) {
+        if (js[i] === '{') depth++;
+        else if (js[i] === '}') depth--;
+        i++;
+      }
+      const allVals: Record<string, string> = { ...values, ...mediaMap };
+      const entries = Object.entries(allVals)
+        .filter(([, v]) => v !== undefined && v !== '')
+        .map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`)
+        .join(',\n');
+      return js.slice(0, startIdx) + `const templateData = {\n${entries}\n}` + js.slice(i);
+    };
+
+    const body  = templateHtml.replace(/\{\{(\w+)\}\}/g, (match, key) => resolveHtml(key, match));
+    const jsRaw = (templateJs || '').replace(/\{\{(\w+)\}\}/g, (match, key) => resolveJs(key, match));
+    const js    = injectTemplateData(jsRaw);
 
     return [
       '<!DOCTYPE html><html><head>',
@@ -124,7 +164,7 @@ const CreateInvitationPage: React.FC = () => {
       `<style>${templateCss}</style>`,
       '</head><body>',
       body,
-      `<script>${templateJs}</script>`,
+      `<script>${js}</script>`,
       '</body></html>',
     ].join('\n');
   }, [templateHtml, templateCss, templateJs, values, media]);
@@ -363,7 +403,7 @@ const CreateInvitationPage: React.FC = () => {
                 <iframe
                   srcDoc={previewSrcDoc}
                   className="w-full h-full border-0"
-                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  sandbox="allow-scripts allow-same-origin"
                   title="Live Preview"
                 />
               ) : (

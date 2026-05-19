@@ -34,37 +34,20 @@ export interface AdminPaymentStats {
   payments: PaymentAdminRecord[];
 }
 
-export const getAllUsers = async (): Promise<UserDto[]> => {
-  return apiFetch('/users/getall', { method: 'POST' });
-};
+export const getAllUsers = async (): Promise<UserDto[]> =>
+  apiFetch('/users/getall', { method: 'POST' });
 
-export const searchUsers = async (params: {
-  searchTerm?: string;
-  role?: string;
-  isActive?: boolean;
-  pageNumber?: number;
-  pageSize?: number;
-}): Promise<UserDto[]> => {
-  return apiFetch('/users/search', {
-    method: 'POST',
-    body: JSON.stringify(params)
-  });
-};
+export const getAdminPaymentStats = async (): Promise<AdminPaymentStats> =>
+  apiFetch('/payment/admin/stats', { method: 'GET' });
 
-export const updateUserStatus = async (id: number, isActive: boolean): Promise<void> => {
-  return apiFetch('/users/updatestatus', {
-    method: 'POST',
-    body: JSON.stringify({ id, isActive })
-  });
-};
+export interface AdminNotification {
+  id: number;
+  type: 'registration' | 'payment' | 'security';
+  icon: string;
+  title: string;
+  message: string;
+  time: string;
+}
 
-export const updateUserRole = async (id: number, role: string): Promise<void> => {
-  return apiFetch('/users/updaterole', {
-    method: 'POST',
-    body: JSON.stringify({ id, role })
-  });
-};
-
-export const getAdminPaymentStats = async (): Promise<AdminPaymentStats> => {
-  return apiFetch('/payment/admin/stats', { method: 'GET' });
-};
+export const getAdminNotifications = (hours = 24): Promise<{ notifications: AdminNotification[]; total: number }> =>
+  apiFetch(`admin/notifications?hours=${hours}`);

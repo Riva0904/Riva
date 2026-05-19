@@ -33,6 +33,59 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+
+    <!--
+      THEME FLASH PREVENTION — runs synchronously before any CSS or React renders.
+      Reads the cached admin theme from localStorage and applies CSS variables
+      directly to :root so the correct colors appear on the very first paint.
+      Without this, the default green flashes for one frame before React's
+      useEffect can apply the theme.
+    -->
+    <script>
+      (function () {
+        try {
+          var cached = localStorage.getItem('riva_theme_cache');
+          if (!cached) return;
+          var t = JSON.parse(cached);
+          if (!t || !t.colorStart || !t.colorEnd) return;
+
+          var root = document.documentElement;
+          var cs   = t.colorStart;
+          var ce   = t.colorEnd;
+          var dir  = t.gradientDir || '135deg';
+
+          root.style.setProperty('--color-gradient',  'linear-gradient(' + dir + ',' + cs + ',' + ce + ')');
+          root.style.setProperty('--color-primary',   cs);
+          root.style.setProperty('--color-secondary', ce);
+
+          // Parse hex → rgb for rgba() usage
+          function hexToRgb(hex) {
+            var h = hex.replace('#', '');
+            if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+            var n = parseInt(h, 16);
+            return isNaN(n) ? null : [(n>>16)&255, (n>>8)&255, n&255];
+          }
+          var rgb = hexToRgb(cs);
+          if (rgb) {
+            root.style.setProperty('--color-primary-rgb',   rgb[0]+','+rgb[1]+','+rgb[2]);
+            root.style.setProperty('--color-primary-light', 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',0.10)');
+            root.style.setProperty('--color-primary-text',  'rgb('+(rgb[0]-40<0?0:rgb[0]-40)+','+(rgb[1]-40<0?0:rgb[1]-40)+','+(rgb[2]-40<0?0:rgb[2]-40)+')');
+          }
+
+          // Text-on-gradient contrast (luminance check)
+          if (rgb) {
+            var toLinear = function(v) { var s=v/255; return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4); };
+            var lum = 0.2126*toLinear(rgb[0]) + 0.7152*toLinear(rgb[1]) + 0.0722*toLinear(rgb[2]);
+            var dark = lum > 0.30;
+            root.style.setProperty('--text-on-gradient',        dark?'#0f172a':'#ffffff');
+            root.style.setProperty('--text-on-gradient-muted',  dark?'rgba(15,23,42,0.72)':'rgba(255,255,255,0.72)');
+            root.style.setProperty('--text-on-gradient-subtle', dark?'rgba(15,23,42,0.45)':'rgba(255,255,255,0.45)');
+            root.style.setProperty('--card-bg-on-gradient',     dark?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.05)');
+            root.style.setProperty('--gradient-text-accent',    dark?'#0f172a':'#86efac');
+          }
+        } catch (e) { /* corrupted cache — ignore, app will fix on load */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

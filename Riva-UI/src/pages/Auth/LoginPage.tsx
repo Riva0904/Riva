@@ -27,7 +27,11 @@ const LoginPage: React.FC = () => {
     setError(null); setBusy(true);
     try {
       const res = await login({ emailOrUsername, password });
-      navigate(res.role === 'Admin' ? '/admin' : '/');
+      if (res.role === 'Admin') {
+        setError('Admin accounts must sign in via the Admin Portal below.');
+        return;
+      }
+      navigate('/dashboard');
     } catch (x: unknown) {
       const msg = x instanceof Error ? x.message : 'Login failed';
       if (msg.startsWith('TOO_MANY_REQUESTS:')) {
@@ -50,7 +54,8 @@ const LoginPage: React.FC = () => {
       await verifyOtp({ email, otpCode: otp });
       setInfo('Account verified! Logging you in...');
       const res = await login({ emailOrUsername, password });
-      navigate(res.role === 'Admin' ? '/admin' : '/');
+      if (res.role === 'Admin') { setError('Admin accounts must sign in via the Admin Portal.'); return; }
+      navigate('/dashboard');
     } catch (x: unknown) {
       setError(x instanceof Error ? x.message : 'Verification failed');
     } finally { setBusy(false); }

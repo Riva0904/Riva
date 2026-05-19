@@ -136,7 +136,7 @@ const Hero: React.FC = () => {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.5 }}
             className="flex gap-8 pt-2">
-            <Counter to="10k+" label="Invitations Sent" delay={0.6} />
+            <Counter to="5k+"  label="Invitations Sent" delay={0.6} />
             <Counter to="98%"  label="Happy Hosts"      delay={0.7} />
             <Counter to="Free" label="To Get Started"   delay={0.8} />
           </motion.div>
@@ -146,21 +146,22 @@ const Hero: React.FC = () => {
         <div className="relative flex items-center justify-center">
           <motion.div variants={floatVariants} animate="animate" className="relative">
 
-            {/* Main card */}
+            {/* Main card — gradient border wrapper */}
             <motion.div
               initial={{ opacity: 0, scale: 0.85, rotate: -3 }}
               animate={{ opacity: 1, scale: 1, rotate: 0 }}
               transition={{ duration: 0.8, delay: 0.3, type: 'spring', bounce: 0.35 }}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl"
-              style={{ boxShadow: '0 32px 80px rgba(var(--color-primary-rgb),0.25), 0 8px 24px rgba(0,0,0,0.1)', border: '3px solid rgba(255,255,255,0.9)' }}>
-              <img
-                src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=700&q=80&fm=jpg"
-                alt="Sample invitation" loading="lazy"
-                className="w-full object-cover" style={{ height: 360 }} />
-              <div style={{ background: 'linear-gradient(to top, rgba(20,83,45,0.95), transparent)' }}
-                className="absolute bottom-0 left-0 right-0 p-5">
-                <p className="text-white font-black text-lg">🎉 Sarah & John's Wedding</p>
-                <p className="text-green-200 text-sm">September 15, 2026 · Grand Ballroom</p>
+              className="relative w-full max-w-sm rounded-3xl p-[3px]"
+              style={{
+                background: 'var(--color-gradient)',
+                boxShadow: '0 32px 80px rgba(var(--color-primary-rgb),0.40), 0 8px 32px rgba(var(--color-primary-rgb),0.25)',
+              }}>
+              {/* Inner card clips the image to rounded shape */}
+              <div className="relative overflow-hidden rounded-[22px]">
+                <img
+                  src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=700&q=80&fm=jpg"
+                  alt="Sample invitation" loading="lazy"
+                  className="w-full object-cover" style={{ height: 420 }} />
               </div>
             </motion.div>
 

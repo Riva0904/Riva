@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  getAdminCategories, createCategory, updateCategory, toggleCategory,
+  getAdminCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   type CategoryDto
 } from '../../../api/categories';
 
@@ -14,6 +14,8 @@ const CategoryManager: React.FC = () => {
   const [editName,   setEditName]   = useState('');
   const [saving,     setSaving]     = useState<number | null>(null);
   const [toggling,   setToggling]   = useState<number | null>(null);
+  const [deleting,   setDeleting]   = useState<number | null>(null);
+  const [confirmId,  setConfirmId]  = useState<number | null>(null);
   const [toast,      setToast]      = useState<string | null>(null);
 
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -52,6 +54,18 @@ const CategoryManager: React.FC = () => {
     } catch (err: unknown) {
       flash(`⚠️ ${err instanceof Error ? err.message : 'Failed to update'}`);
     } finally { setSaving(null); }
+  };
+
+  const handleDelete = async (cat: CategoryDto) => {
+    setDeleting(cat.categoryId);
+    setConfirmId(null);
+    try {
+      await deleteCategory(cat.categoryId);
+      setCategories(prev => prev.filter(c => c.categoryId !== cat.categoryId));
+      flash(`🗑️ Category "${cat.name}" deleted.`);
+    } catch (err: unknown) {
+      flash(`⚠️ ${err instanceof Error ? err.message : 'Cannot delete — category may have templates.'}`);
+    } finally { setDeleting(null); }
   };
 
   const handleToggle = async (cat: CategoryDto) => {
@@ -132,16 +146,21 @@ const CategoryManager: React.FC = () => {
                 {/* Name / edit */}
                 {editId === cat.categoryId ? (
                   <form onSubmit={e => { e.preventDefault(); handleUpdate(cat.categoryId); }}
-                    className="flex flex-1 gap-2">
-                    <input className="input-green flex-1 py-1.5" autoFocus
-                      value={editName} onChange={e => setEditName(e.target.value)} />
+                    className="flex flex-1 items-center gap-2 min-w-0">
+                    <input
+                      autoFocus
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="flex-1 min-w-0 rounded-xl border-2 border-green-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 outline-none focus:border-green-500 transition"
+                    />
                     <button type="submit" disabled={saving === cat.categoryId}
-                      style={{ width: 'auto' }}
-                      className="btn-green px-3 py-1.5 text-xs">
+                      className="flex-shrink-0 rounded-xl bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs font-black transition disabled:opacity-50">
                       {saving === cat.categoryId ? '⏳' : '✓ Save'}
                     </button>
                     <button type="button" onClick={() => setEditId(null)}
-                      className="btn-green-outline w-auto px-3 py-1.5 text-xs">✕</button>
+                      className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-xl border-2 border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50 text-xs font-black transition">
+                      ✕
+                    </button>
                   </form>
                 ) : (
                   <>
@@ -167,6 +186,28 @@ const CategoryManager: React.FC = () => {
                           : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
                       {toggling === cat.categoryId ? '⏳' : cat.isActive ? '⛔ Deactivate' : '✅ Activate'}
                     </motion.button>
+
+                    {/* Delete */}
+                    {confirmId === cat.categoryId ? (
+                      <div className="flex items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-2.5 py-1.5">
+                        <span className="text-xs font-black text-red-600">Sure?</span>
+                        <button onClick={() => handleDelete(cat)}
+                          disabled={deleting === cat.categoryId}
+                          className="rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-black px-2 py-0.5 transition disabled:opacity-50">
+                          {deleting === cat.categoryId ? '⏳' : 'Yes'}
+                        </button>
+                        <button onClick={() => setConfirmId(null)}
+                          className="rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-black px-2 py-0.5 transition">
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={() => setConfirmId(cat.categoryId)}
+                        className="rounded-xl px-2.5 py-1.5 text-xs font-black bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 transition">
+                        🗑️
+                      </motion.button>
+                    )}
                   </>
                 )}
               </motion.div>

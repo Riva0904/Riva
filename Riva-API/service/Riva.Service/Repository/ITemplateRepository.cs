@@ -17,4 +17,6 @@ public interface ITemplateRepository
     Task UpdateTemplateAsync(int templateId, string name, int categoryId, bool isPaid, decimal? price,
         string templateHtml, string? templateCss, string? templateJs, string schemaJson,
         string? previewImageUrl, string? thumbnailUrl, string? description, string tierType = "Free");
+
+    Task UpdatePriceAsync(int templateId, decimal? price);
 }

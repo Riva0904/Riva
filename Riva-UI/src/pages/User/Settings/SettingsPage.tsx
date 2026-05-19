@@ -6,14 +6,13 @@ import { logout, forgotPassword, resetPassword, getStoredEmail } from '../../../
 
 type Section = 'password' | 'account' | 'notifications' | 'appearance';
 
-const USER_MODE_KEY = 'riva_theme_mode';
-
 const SettingsPage: React.FC = () => {
   const navigate  = useNavigate();
   const [active,  setActive]  = useState<Section>('password');
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(
-    () => (localStorage.getItem(USER_MODE_KEY) ?? 'light') as 'light' | 'dark'
-  );
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    const email = getStoredEmail();
+    return ((email ? localStorage.getItem(`riva_theme_${email}`) : null) ?? 'light') as 'light' | 'dark';
+  });
   const [toast,   setToast]   = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // Change password form
@@ -32,22 +31,32 @@ const SettingsPage: React.FC = () => {
   const [forgotConfirm, setForgotConfirm] = useState('');
   const [forgotBusy,    setForgotBusy]    = useState(false);
 
-  // Notification preferences (persisted in localStorage)
+  // Notification preferences
   const NOTIF_KEY = 'riva_notif_prefs';
   const NOTIF_ITEMS = [
-    { key: 'rsvp',     label: 'RSVP responses',         desc: 'Get notified when guests RSVP to your invitations' },
-    { key: 'views',    label: 'Invitation views',        desc: 'Know when someone opens your invitation' },
+    { key: 'rsvp',     label: 'RSVP responses',         desc: 'Get notified by email when guests RSVP to your invitations' },
     { key: 'security', label: 'Account security alerts', desc: 'Important alerts about your account security' },
   ];
-  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(() => {
+  const [notifPrefs,  setNotifPrefs]  = useState<Record<string, boolean>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(NOTIF_KEY) ?? '{}');
-      return { rsvp: true, views: true, security: true, ...saved };
-    } catch { return { rsvp: true, views: true, security: true }; }
+      return { rsvp: true, security: true, ...saved };
+    } catch { return { rsvp: true, security: true }; }
   });
-  const saveNotifPrefs = () => {
-    localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
-    flash('Notification preferences saved!');
+  const [savingNotif, setSavingNotif] = useState(false);
+  const saveNotifPrefs = async () => {
+    setSavingNotif(true);
+    try {
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(notifPrefs));
+      // Persist RSVP email preference to server so backend respects it
+      await fetch(`${import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api'}/users/notification-prefs`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('riva_token') ?? ''}` },
+        body:    JSON.stringify({ notifyOnRsvp: notifPrefs.rsvp }),
+      });
+      flash('Notification preferences saved!');
+    } catch { flash('Preferences saved locally.'); }
+    finally { setSavingNotif(false); }
   };
 
   const flash = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -107,8 +116,9 @@ const SettingsPage: React.FC = () => {
   };
 
   const applyMode = (mode: 'light' | 'dark') => {
+    const email = getStoredEmail();
+    if (email) localStorage.setItem(`riva_theme_${email}`, mode);
     setThemeMode(mode);
-    localStorage.setItem(USER_MODE_KEY, mode);
     document.documentElement.setAttribute('data-theme', mode);
   };
 
@@ -371,10 +381,10 @@ const SettingsPage: React.FC = () => {
                       </label>
                     ))}
                   </div>
-                  <motion.button onClick={saveNotifPrefs}
+                  <motion.button onClick={saveNotifPrefs} disabled={savingNotif}
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    className="btn-green mt-5">
-                    Save Preferences
+                    className="btn-green mt-5 disabled:opacity-60">
+                    {savingNotif ? '⏳ Saving…' : 'Save Preferences'}
                   </motion.button>
                 </motion.div>
               )}

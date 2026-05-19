@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? '/postapi';
+export const API_BASE   = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
+export const API_ORIGIN = API_BASE.replace(/\/api$/, '');
 
 function getAuthToken(): string | null {
   return localStorage.getItem('riva_token');

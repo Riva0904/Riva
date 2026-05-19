@@ -1,20 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { logout, getStoredRole } from '../../api/auth';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getStoredAuthToken, API_ORIGIN } from '../../api/client';
+import { logout, getStoredRole, setStoredDisplayName, getStoredDisplayName } from '../../api/auth';
 import { getUserSession, type UserSession } from '../../api/analysis';
 import { getUserProfile, updateProfile, uploadProfileImage, type UserProfile } from '../../api/user';
-import { getMyInvitations, type InvitationSummary } from '../../api/invitation';
+import { getMyInvitations, getPublicInvitationHtml, type InvitationSummary } from '../../api/invitation';
 import { getRsvpSummary, exportRsvpCsv, type RsvpSummary, type RsvpDto } from '../../api/rsvp';
-import { getTemplates } from '../../api/templates';
-import { motion, AnimatePresence } from 'framer-motion';
-import { type WishlistItem } from './components/UserTemplateGallery';
+import { getTemplates, type TemplateListItem } from '../../api/templates';
+import { getMyPlan, type MyPlan } from '../../api/subscriptions';
 import ShareModal from '../../components/ShareModal';
-import { getStoredAuthToken } from '../../api/client';
+import TemplatePaymentModal from '../../components/TemplatePaymentModal';
+import { handleUseTemplate } from '../../utils/templateAccess';
+import { useWishlist } from '../../hooks/useWishlist';
 
-const WISHLIST_KEY = 'riva_wishlist';
-const getWishlist = (): WishlistItem[] => {
-  try { return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); }
-  catch { return []; }
-};
+const withBase = (html: string) => html.replace('<head>', `<head><base href="${API_ORIGIN}/">`);
 
 type ProfileTab  = 'work' | 'wishlist';
 
@@ -38,13 +38,17 @@ const LockedField = ({ label, value }: { label: string; value: string }) => (
 );
 
 const UserDashboard: React.FC = () => {
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (!getStoredAuthToken()) window.location.href = '/login';
   }, []);
 
-  const [session,   setSession]   = useState<UserSession | null>(null);
+  const [session,     setSession]     = useState<UserSession | null>(null);
+  const [payTemplate, setPayTemplate] = useState<TemplateListItem | null>(null);
   const [profTab,   setProfTab]   = useState<ProfileTab>('work');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef         = useRef<HTMLInputElement>(null);
+  const fetchedRsvpIds  = useRef(new Set<number>());
 
   const [profile,      setProfile]      = useState<UserProfile | null>(null);
   const [editing,      setEditing]      = useState(false);
@@ -61,7 +65,14 @@ const UserDashboard: React.FC = () => {
   const [shareInv,    setShareInv]    = useState<InvitationSummary | null>(null);
   const [rsvpModal,   setRsvpModal]   = useState<{ inv: InvitationSummary; rsvp: RsvpSummary } | null>(null);
   const [tplPaidMap,  setTplPaidMap]  = useState<Map<number, boolean>>(new Map());
-  const [wishlist,    setWishlist]    = useState<WishlistItem[]>(getWishlist);
+  const [allTpls,     setAllTpls]     = useState<TemplateListItem[]>([]);
+  const { wishlistIds, toggleWishlist } = useWishlist();
+
+  const [myPlan,        setMyPlan]        = useState<MyPlan | null>(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [previewInv,    setPreviewInv]    = useState<InvitationSummary | null>(null);
+  const [previewHtml,   setPreviewHtml]   = useState<string | null>(null);
+  const [previewLoading,setPreviewLoading]= useState(false);
 
   useEffect(() => {
     if (!getStoredAuthToken()) return;
@@ -73,21 +84,21 @@ const UserDashboard: React.FC = () => {
       const m = new Map<number, boolean>();
       res.templates.forEach(t => m.set(t.templateId, t.isPaid));
       setTplPaidMap(m);
+      setAllTpls(res.templates);
     }).catch(() => {});
+    getMyPlan().then(setMyPlan).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (profTab === 'wishlist') setWishlist(getWishlist());
-  }, [profTab]);
-
-  useEffect(() => {
-    const published = invitations.filter(i => i.status === 'Published');
-    if (!published.length) return;
-    published.forEach(inv =>
-      getRsvpSummary(inv.invitationId)
-        .then(d => setRsvpData(p => ({ ...p, [inv.invitationId]: d })))
-        .catch(() => {})
-    );
+    // Only fetch RSVPs for invitations not yet cached — prevents redundant API calls
+    invitations
+      .filter(i => i.status === 'Published' && !fetchedRsvpIds.current.has(i.invitationId))
+      .forEach(inv => {
+        fetchedRsvpIds.current.add(inv.invitationId);
+        getRsvpSummary(inv.invitationId)
+          .then(d => setRsvpData(p => ({ ...p, [inv.invitationId]: d })))
+          .catch(() => { fetchedRsvpIds.current.delete(inv.invitationId); });
+      });
   }, [invitations]);
 
   const showToast = (msg: string, ok = true) => {
@@ -116,6 +127,7 @@ const UserDashboard: React.FC = () => {
       const dname = pDisplayName.trim();
       await updateProfile({ username: profile!.username, email: profile!.email, displayName: dname || undefined });
       setProfile(p => p ? { ...p, displayName: dname || undefined } : p);
+      setStoredDisplayName(dname || null);
       setEditing(false); showToast('Profile saved!');
     } catch (err: unknown) { showToast(err instanceof Error ? err.message : 'Save failed', false); }
     finally { setSaving(false); }
@@ -133,6 +145,9 @@ const UserDashboard: React.FC = () => {
   };
 
   const openRsvpModal = (inv: InvitationSummary) => {
+    // Close any open invitation preview so it doesn't show behind the RSVP modal
+    setPreviewInv(null);
+    setPreviewHtml(null);
     const rsvp = rsvpData[inv.invitationId];
     if (rsvp) { setRsvpModal({ inv, rsvp }); return; }
     getRsvpSummary(inv.invitationId)
@@ -140,16 +155,15 @@ const UserDashboard: React.FC = () => {
       .catch(() => {});
   };
 
-  const removeFromWishlist = (id: number) => {
-    const next = wishlist.filter(t => t.templateId !== id);
-    localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
-    setWishlist(next);
-  };
+  const wishlist = useMemo(
+    () => allTpls.filter(t => wishlistIds.has(t.templateId)),
+    [allTpls, wishlistIds]
+  );
 
-  const published     = invitations.filter(i => i.status === 'Published');
-  const freePublished = published.filter(i => !tplPaidMap.get(i.templateId)).length;
-  const paidPublished = published.filter(i =>  tplPaidMap.get(i.templateId)).length;
-  const displayName   = profile?.displayName || profile?.username || session?.username || '';
+  const published     = useMemo(() => invitations.filter(i => i.status === 'Published'), [invitations]);
+  const freePublished = useMemo(() => published.filter(i => !tplPaidMap.get(i.templateId)).length, [published, tplPaidMap]);
+  const paidPublished = useMemo(() => published.filter(i =>  tplPaidMap.get(i.templateId)).length, [published, tplPaidMap]);
+  const displayName   = profile?.displayName || profile?.username || session?.username || getStoredDisplayName() || '';
   const avatarInitial = displayName.charAt(0).toUpperCase() || '?';
 
   const profileJoined    = (profile?.createdAt || session?.createdAt)
@@ -164,17 +178,197 @@ const UserDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100">
 
+      {/* Template payment modal — triggered from wishlist */}
+      {payTemplate && (
+        <TemplatePaymentModal
+          template={payTemplate}
+          onClose={() => setPayTemplate(null)}
+          onSuccess={id => { setPayTemplate(null); navigate(`/invitation/new/${id}`); }}
+        />
+      )}
+
       {/* Share modal */}
       {shareInv && (
         <ShareModal url={`${window.location.origin}/invite/${shareInv.slug}`}
           title={shareInv.title} onClose={() => setShareInv(null)} />
       )}
 
+      {/* Invitation preview modal */}
+      <AnimatePresence>
+        {previewInv && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
+            onClick={() => { setPreviewInv(null); setPreviewHtml(null); }}>
+            <motion.div
+              initial={{ scale: 0.93, y: 20 }} animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.93, y: 20 }} transition={{ type: 'spring', bounce: 0.22 }}
+              className="relative flex flex-col w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+              style={{ maxHeight: '92vh', background: '#0f172a' }}
+              onClick={e => e.stopPropagation()}>
+
+              {/* Top action bar */}
+              <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="min-w-0">
+                  <p className="text-white font-black text-sm truncate">{previewInv.title}</p>
+                  <p className="text-white/40 text-xs truncate">{previewInv.templateName}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  {previewInv.status === 'Published' && (
+                    <button onClick={() => setShareInv(previewInv)}
+                      className="rounded-xl px-3 py-1.5 text-xs font-black text-white/80 border border-white/20 hover:bg-white/10 transition">
+                      🔗 Share
+                    </button>
+                  )}
+                  <button onClick={() => { setPreviewInv(null); setPreviewHtml(null); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white font-black text-sm transition">
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Invitation content */}
+              <div className="flex-1 overflow-hidden">
+                {previewInv.status === 'Published' ? (
+                  previewLoading ? (
+                    <div className="flex flex-col items-center justify-center h-64 gap-3 text-white/50">
+                      <motion.div animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full" />
+                      <p className="text-xs">Loading invitation…</p>
+                    </div>
+                  ) : previewHtml ? (
+                    <iframe srcDoc={previewHtml} className="w-full border-0"
+                      style={{ height: '72vh' }} title={previewInv.title}
+                      sandbox="allow-scripts allow-same-origin" />
+                  ) : (
+                    <div className="flex items-center justify-center h-48 text-white/40 text-sm">
+                      Could not load invitation
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 gap-4 p-6 text-white/50">
+                    <p className="text-4xl">📝</p>
+                    <p className="text-sm font-semibold">Draft — not published yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom action — Use This Template */}
+              <div className="flex-shrink-0 p-3 border-t border-white/10">
+                <a href={`/invitation/new/${previewInv.templateId}`}
+                  className="flex items-center justify-center gap-2 w-full rounded-2xl py-3 text-sm font-black text-white transition"
+                  style={{ background: 'var(--color-gradient)' }}>
+                  🎨 Use This Template for New Invitation
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* My Plan modal */}
+      <AnimatePresence>
+        {showPlanModal && (() => {
+          const sub       = myPlan?.subscription;
+          const active    = sub?.status === 'Active';
+          const planName  = active ? sub!.planType : 'Free';
+          const endDate   = active && sub?.endDate
+            ? new Date(sub.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            : null;
+
+          const PLAN_INFO: Record<string, { color: string; gradient: string; icon: string; price: string; features: string[] }> = {
+            Free:    { color: '#16a34a', gradient: 'linear-gradient(135deg,#16a34a,#059669)', icon: '🆓', price: '₹0/month',
+              features: ['Free invitation templates','Basic text & quotes design','Unlimited RSVPs','WhatsApp & email sharing','QR code generation','Includes Riva branding'] },
+            Pro:     { color: '#7c3aed', gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', icon: '🚀', price: '₹1,499/month',
+              features: ['Everything in Free','Pro animated templates','Google Maps integration','Video embed (30-40 sec)','Countdown timer','Full RSVP forms','Includes Riva branding'] },
+            Premium: { color: '#db2777', gradient: 'linear-gradient(135deg,#7c3aed,#db2777)', icon: '💎', price: '₹799/month',
+              features: ['Everything in Pro','Unlimited ALL templates','Premium animated themes','Background images & GIFs','Photo gallery section','RSVP analytics dashboard','Remove Riva branding'] },
+          };
+          const info = PLAN_INFO[planName] ?? PLAN_INFO['Free'];
+
+          return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+              onClick={() => setShowPlanModal(false)}>
+              <motion.div
+                initial={{ scale: 0.9, y: 24 }} animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 24 }} transition={{ type: 'spring', bounce: 0.3 }}
+                className="w-full max-w-sm rounded-3xl overflow-hidden bg-white shadow-2xl"
+                onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="p-6 text-white text-center" style={{ background: info.gradient }}>
+                  <div className="text-4xl mb-2">{info.icon}</div>
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">
+                    {active ? 'Your Current Plan' : 'No Active Plan'}
+                  </p>
+                  <h2 className="text-2xl font-black">{planName}</h2>
+                  <p className="text-lg font-bold opacity-90 mt-0.5">{info.price}</p>
+                  {endDate && (
+                    <p className="text-xs opacity-70 mt-2">Renews {endDate}</p>
+                  )}
+                  {active && (
+                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-black">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
+                      Active
+                    </div>
+                  )}
+                </div>
+
+                {/* Features */}
+                <div className="p-5">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Plan Includes</p>
+                  <ul className="space-y-2 mb-5">
+                    {info.features.map(f => (
+                      <li key={f} className="flex items-center gap-2 text-sm text-slate-700">
+                        <span className="font-black flex-shrink-0" style={{ color: info.color }}>✓</span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2">
+                    {planName !== 'Free' && (
+                      <button onClick={() => { setShowPlanModal(false); window.location.href = `/templates?tier=${planName}`; }}
+                        className="w-full rounded-xl py-3 text-sm font-black text-white"
+                        style={{ background: info.gradient }}>
+                        Browse {planName} Templates →
+                      </button>
+                    )}
+                    {planName === 'Free' && (
+                      <button onClick={() => { setShowPlanModal(false); window.location.href = '/payment?plan=Premium&cycle=monthly'; }}
+                        className="w-full rounded-xl py-3 text-sm font-black text-white"
+                        style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                        Upgrade to Premium →
+                      </button>
+                    )}
+                    {planName === 'Pro' && (
+                      <button onClick={() => { setShowPlanModal(false); window.location.href = '/payment?plan=Premium&cycle=monthly'; }}
+                        className="w-full rounded-xl py-2.5 text-sm font-black text-slate-600 border border-slate-200 hover:border-purple-300 transition">
+                        Upgrade to Premium 💎
+                      </button>
+                    )}
+                    <button onClick={() => setShowPlanModal(false)}
+                      className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 transition">
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* RSVP modal */}
       <AnimatePresence>
         {rsvpModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
             onClick={() => setRsvpModal(null)}>
             <motion.div
@@ -446,7 +640,7 @@ const UserDashboard: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { icon: '🎨', label: 'New Invitation', href: '/templates', action: undefined as (() => void) | undefined },
-                    { icon: '⭐', label: session?.subscriptionPlan === 'Starter' ? 'Upgrade Plan' : (session?.subscriptionPlan ?? 'My Plan'), href: '/subscription' },
+                    { icon: '⭐', label: 'My Plan', action: () => setShowPlanModal(true) },
                     { icon: '⚙️', label: 'Settings',        href: '/settings' },
                     { icon: '❤️', label: 'My Wishlist',    action: () => setProfTab('wishlist') },
                   ].map(a => (
@@ -466,7 +660,7 @@ const UserDashboard: React.FC = () => {
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="flex border-b border-slate-100 px-4 pt-1">
                   {([
-                    { key: 'work'     as ProfileTab, label: '🎨 Our Work',  count: published.length },
+                    { key: 'work'     as ProfileTab, label: '🎨 Our Work',  count: invitations.length },
                     { key: 'wishlist' as ProfileTab, label: '❤️ Wishlist', count: wishlist.length },
                   ]).map(t => (
                     <button key={t.key} onClick={() => setProfTab(t.key)}
@@ -493,11 +687,11 @@ const UserDashboard: React.FC = () => {
                       <div className="grid gap-4 sm:grid-cols-2">
                         {[1,2,3,4].map(i => <div key={i} className="animate-pulse rounded-2xl bg-slate-100 h-48" />)}
                       </div>
-                    ) : published.length === 0 ? (
+                    ) : invitations.length === 0 ? (
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                         className="py-14 text-center">
                         <p className="text-5xl mb-3">🎉</p>
-                        <h3 className="text-base font-black text-slate-800 mb-1">No published invitations yet</h3>
+                        <h3 className="text-base font-black text-slate-800 mb-1">No invitations yet</h3>
                         <p className="text-sm text-slate-400 mb-5">Browse templates and create your first digital invitation.</p>
                         <a href="/templates" className="btn-green mx-auto w-auto px-8 text-center block">
                           Browse Templates →
@@ -506,18 +700,27 @@ const UserDashboard: React.FC = () => {
                     ) : (
                       <div className="grid gap-4 sm:grid-cols-2">
                         <AnimatePresence>
-                          {published.map((inv, idx) => {
+                          {invitations.map((inv, idx) => {
                             const rsvp       = rsvpData[inv.invitationId];
                             const isExpanded = expandedId === inv.invitationId;
-                            const msgCount   = rsvp?.responses.filter(r => r.message?.trim()).length ?? 0;
+                            const rsvpCount  = rsvp?.totalResponses ?? 0;
                             return (
                               <motion.div key={inv.invitationId}
                                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: idx * 0.05 }}
                                 className="rounded-2xl border border-slate-200 overflow-hidden group hover:shadow-md transition bg-white">
 
-                                {/* Thumbnail */}
-                                <div className="relative bg-slate-100 overflow-hidden" style={{ height: 130 }}>
+                                {/* Thumbnail — click to open invitation preview */}
+                                <div className="relative bg-slate-100 overflow-hidden cursor-pointer" style={{ height: 130 }}
+                                  onClick={() => {
+                                    setPreviewInv(inv);
+                                    if (inv.status === 'Published' && inv.slug) {
+                                      setPreviewHtml(null); setPreviewLoading(true);
+                                      getPublicInvitationHtml(inv.slug)
+                                        .then(h => setPreviewHtml(withBase(h))).catch(() => setPreviewHtml(null))
+                                        .finally(() => setPreviewLoading(false));
+                                    }
+                                  }}>
                                   {inv.thumbnailUrl ? (
                                     <img src={inv.thumbnailUrl} alt={inv.title}
                                       className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
@@ -525,29 +728,48 @@ const UserDashboard: React.FC = () => {
                                     <div className="flex items-center justify-center h-full text-4xl bg-green-50">🎉</div>
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent pointer-events-none" />
-                                  <span className="absolute top-2 right-2 rounded-full bg-green-600 text-white px-2.5 py-0.5 text-[10px] font-black">
-                                    Published
+                                  <span className={`absolute top-2 right-2 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                                    inv.status === 'Published' ? 'bg-green-600 text-white' : 'bg-slate-600 text-white'
+                                  }`}>
+                                    {inv.status === 'Published' ? 'Published' : 'Saved'}
                                   </span>
                                   <span className="absolute top-2 left-2 rounded-full bg-black/40 px-2 py-0.5 text-xs text-white">
                                     👁 {inv.viewCount}
                                   </span>
-                                  {msgCount > 0 && (
+                                  {rsvpCount > 0 && (
                                     <motion.button whileHover={{ scale: 1.1 }}
-                                      onClick={() => openRsvpModal(inv)}
+                                      onClick={e => { e.stopPropagation(); openRsvpModal(inv); }}
                                       className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-black text-green-700 shadow">
-                                      💬 {msgCount}
+                                      💬 {rsvpCount}
                                     </motion.button>
                                   )}
                                 </div>
 
                                 <div className="p-3 space-y-2.5">
                                   <div>
-                                    <h3 className="font-black text-slate-900 truncate">{inv.title}</h3>
+                                    <h3 className="font-black text-slate-900 truncate cursor-pointer hover:underline"
+                                      onClick={() => {
+                                        setPreviewInv(inv);
+                                        if (inv.status === 'Published' && inv.slug) {
+                                          setPreviewHtml(null); setPreviewLoading(true);
+                                          getPublicInvitationHtml(inv.slug)
+                                            .then(h => setPreviewHtml(withBase(h))).catch(() => setPreviewHtml(null))
+                                            .finally(() => setPreviewLoading(false));
+                                        }
+                                      }}>
+                                      {inv.title}
+                                    </h3>
                                     <p className="text-xs text-slate-400">{inv.templateName}</p>
                                   </div>
 
-                                  {/* RSVP accordion */}
-                                  <div>
+                                  {/* RSVP accordion — only for Published */}
+                                  {inv.status !== 'Published' && (
+                                    <a href={`/invitation/${inv.invitationId}/edit`}
+                                      className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition text-center">
+                                      ✏️ Continue Editing →
+                                    </a>
+                                  )}
+                                  <div className={inv.status !== 'Published' ? 'hidden' : ''}>
                                     <button onClick={() => loadRsvp(inv)}
                                       className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition flex items-center justify-between">
                                       <span>📊 RSVP Responses {rsvp ? `(${rsvp.totalResponses})` : ''}</span>
@@ -597,13 +819,16 @@ const UserDashboard: React.FC = () => {
                                         </motion.div>
                                       )}
                                     </AnimatePresence>
-                                  </div>
+                                  </div>{/* end RSVP accordion */}
 
-                                  <button onClick={() => setShareInv(inv)}
-                                    className="w-full rounded-xl py-2 text-xs font-black text-white transition text-center"
-                                    style={{ background: 'var(--color-gradient)' }}>
-                                    🔗 Share
-                                  </button>
+                                  {/* Share button — only for Published */}
+                                  {inv.status === 'Published' && (
+                                    <button onClick={() => setShareInv(inv)}
+                                      className="w-full rounded-xl py-2 text-xs font-black text-white transition text-center"
+                                      style={{ background: 'var(--color-gradient)' }}>
+                                      🔗 Share
+                                    </button>
+                                  )}
                                 </div>
                               </motion.div>
                             );
@@ -636,11 +861,13 @@ const UserDashboard: React.FC = () => {
                               ) : (
                                 <div className="flex items-center justify-center h-full text-3xl bg-green-50">🎉</div>
                               )}
-                              <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-black ${t.isPaid ? 'bg-amber-400 text-amber-900' : 'bg-green-500 text-white'}`}>
-                                {t.isPaid ? `$${t.price ?? ''}` : 'Free'}
+                              <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                                t.tierType === 'Pro' ? 'bg-purple-500 text-white' :
+                                t.tierType === 'Premium' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
+                                {t.tierType === 'Free' ? 'Free' : `₹${t.price ?? ''}`}
                               </span>
                               <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
-                                onClick={() => removeFromWishlist(t.templateId)}
+                                onClick={e => toggleWishlist(t.templateId, e)}
                                 className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-full bg-white/90 shadow hover:bg-red-50 transition">
                                 ❤️
                               </motion.button>
@@ -648,8 +875,9 @@ const UserDashboard: React.FC = () => {
                             <div className="p-3">
                               <h3 className="font-black text-slate-900 text-sm truncate">{t.name}</h3>
                               <p className="text-xs text-slate-400 mb-2">{t.categoryName}</p>
-                              <a href={`/invitation/new/${t.templateId}`}
-                                className="btn-green w-full text-xs py-1.5 text-center block">✨ Use Template</a>
+                              <button
+                                onClick={() => handleUseTemplate(t, navigate, setPayTemplate)}
+                                className="btn-green w-full text-xs py-1.5 text-center block">✨ Use Template</button>
                             </div>
                           </motion.div>
                         ))}

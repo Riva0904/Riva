@@ -5,8 +5,8 @@ import { getStoredAuthToken } from '../../../api/client';
 
 const steps = [
   { step:'01', icon:'🎨', title:'Pick a Template',
-    desc:'Browse 15+ animated templates across Birthday, Wedding, House Warming and more. Filter by Free, Premium or Pro.',
-    color:'#16a34a' },
+    desc:'Browse 100+ animated templates across Birthday, Wedding, House Warming and more. Filter by Free, Premium or Pro.',
+    color:'var(--color-primary)' },
   { step:'02', icon:'✏️', title:'Customize It',
     desc:'Fill in your event details — name, date, venue, message. Premium & Pro templates support photos, videos and maps.',
     color:'#2563eb' },
@@ -14,7 +14,7 @@ const steps = [
     desc:'Get a unique link. Share via WhatsApp, Email, or QR code. Your invitation loads as a beautiful mini-website.',
     color:'#7c3aed' },
   { step:'04', icon:'📊', title:'Track RSVPs',
-    desc:"See who accepted, declined, or hasn't responded. Download CSV, view guest messages, get real-time notifications.",
+    desc:"See who accepted, declined, or hasn't responded. View guest messages and get real-time notifications.",
     color:'#dc2626' },
 ];
 
@@ -88,7 +88,7 @@ const HowItWorks: React.FC = () => {
             className="relative inline-flex items-center gap-2 rounded-full px-8 py-4 text-sm font-black text-white overflow-hidden"
             style={{ background: 'var(--color-gradient)' }}>
             <motion.span className="absolute inset-0 rounded-full"
-              animate={{ boxShadow: ['0 0 0 0 rgba(22,163,74,0.5)','0 0 0 14px rgba(22,163,74,0)','0 0 0 0 rgba(22,163,74,0)'] }}
+              animate={{ boxShadow: ['0 0 0 0 rgba(var(--color-primary-rgb),0.5)','0 0 0 14px rgba(var(--color-primary-rgb),0)','0 0 0 0 rgba(var(--color-primary-rgb),0)'] }}
               transition={{ duration: 2, repeat: Infinity }} />
             <span className="relative z-10">✨</span>
             <span className="relative z-10">{isLoggedIn ? '🎨 Browse Templates →' : "✨ Start Creating — It's Free"}</span>

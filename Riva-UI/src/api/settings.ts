@@ -1,10 +1,11 @@
 import { apiFetch } from './client';
 
 export interface ThemeColors {
-  colorStart:  string;
-  colorEnd:    string;
-  gradientDir: string;
-  mode?:       'light' | 'dark';
+  colorStart:   string;
+  colorEnd:     string;
+  gradientDir:  string;
+  mode?:        'light' | 'dark';
+  gradientText?: 'auto' | 'light' | 'dark';
 }
 
 export async function getTheme(): Promise<ThemeColors> {
@@ -15,15 +16,17 @@ export async function saveTheme(colors: ThemeColors): Promise<{ message: string 
   return apiFetch('app-settings/theme', {
     method: 'POST',
     body: JSON.stringify({
-      colorStart:  colors.colorStart,
-      colorEnd:    colors.colorEnd,
-      gradientDir: colors.gradientDir,
-      mode:        colors.mode ?? 'light',
+      colorStart:   colors.colorStart,
+      colorEnd:     colors.colorEnd,
+      gradientDir:  colors.gradientDir,
+      mode:         colors.mode        ?? 'light',
+      gradientText: colors.gradientText ?? 'auto',
     }),
   });
 }
 
-/** Safely parse a hex color into r,g,b — returns null if invalid */
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 function parseHex(hex: string): [number, number, number] | null {
   const h    = hex.trim().replace('#', '');
   const full = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h;
@@ -35,12 +38,33 @@ function parseHex(hex: string): [number, number, number] | null {
   return [r, g, b];
 }
 
-/** Apply gradient colors (admin-controlled). Dark/light is user-controlled separately. */
-export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '135deg', _mode?: 'light' | 'dark') {
+/** WCAG relative luminance (0 = black, 1 = white) */
+function luminance(hex: string): number {
+  const rgb = parseHex(hex);
+  if (!rgb) return 0.5;
+  const toLinear = (v: number) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const [r, g, b] = rgb;
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/**
+ * Apply admin-controlled gradient colors as CSS custom properties on :root.
+ * Automatically computes contrast-safe text colors for gradient backgrounds.
+ */
+export function applyTheme(
+  colorStart:   string,
+  colorEnd:     string,
+  gradientDir  = '135deg',
+  _mode?:       'light' | 'dark',
+  gradientText: 'auto' | 'light' | 'dark' = 'auto',
+) {
   const root     = document.documentElement;
   const gradient = `linear-gradient(${gradientDir}, ${colorStart}, ${colorEnd})`;
 
-  // Gradient & primary color
+  // Core gradient variables
   root.style.setProperty('--color-gradient',  gradient);
   root.style.setProperty('--color-primary',   colorStart);
   root.style.setProperty('--color-secondary', colorEnd);
@@ -54,7 +78,40 @@ export function applyTheme(colorStart: string, colorEnd: string, gradientDir = '
     root.style.setProperty('--color-primary-text',        `rgb(${Math.max(0,r-40)},${Math.max(0,g-40)},${Math.max(0,b-40)})`);
   }
 
-  // mode param kept for backward compat but user preference overrides via App.tsx
+  // ── Text-on-gradient contrast variables ─────────────────────────────────
+  // Determine if gradient background is perceptually "light" or "dark"
+  let usesDarkText: boolean;
+  if (gradientText === 'dark') {
+    usesDarkText = true;    // admin forced dark text
+  } else if (gradientText === 'light') {
+    usesDarkText = false;   // admin forced light (white) text
+  } else {
+    // Auto: average luminance of both colors; threshold 0.30
+    const lum = (luminance(colorStart) + luminance(colorEnd)) / 2;
+    usesDarkText = lum > 0.30;
+  }
+
+  if (usesDarkText) {
+    // Light gradient (gold, ivory, champagne, pale blue…) → dark text
+    root.style.setProperty('--text-on-gradient',        '#0f172a');
+    root.style.setProperty('--text-on-gradient-muted',  'rgba(15,23,42,0.72)');
+    root.style.setProperty('--text-on-gradient-subtle', 'rgba(15,23,42,0.45)');
+    root.style.setProperty('--border-on-gradient',      'rgba(0,0,0,0.15)');
+    root.style.setProperty('--badge-bg-on-gradient',    'rgba(0,0,0,0.08)');
+    root.style.setProperty('--badge-border-on-gradient','rgba(0,0,0,0.14)');
+    root.style.setProperty('--card-bg-on-gradient',     'rgba(255,255,255,0.25)');
+    root.style.setProperty('--gradient-text-accent',    '#0f172a');
+  } else {
+    // Dark gradient (green, navy, purple, crimson…) → white text
+    root.style.setProperty('--text-on-gradient',        '#ffffff');
+    root.style.setProperty('--text-on-gradient-muted',  'rgba(255,255,255,0.72)');
+    root.style.setProperty('--text-on-gradient-subtle', 'rgba(255,255,255,0.45)');
+    root.style.setProperty('--border-on-gradient',      'rgba(255,255,255,0.22)');
+    root.style.setProperty('--badge-bg-on-gradient',    'rgba(255,255,255,0.14)');
+    root.style.setProperty('--badge-border-on-gradient','rgba(255,255,255,0.22)');
+    root.style.setProperty('--card-bg-on-gradient',     'rgba(255,255,255,0.05)');
+    root.style.setProperty('--gradient-text-accent',    '#86efac');
+  }
 }
 
 /** Compute shades used in the branding preview */

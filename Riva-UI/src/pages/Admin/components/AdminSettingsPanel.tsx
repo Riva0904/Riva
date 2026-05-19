@@ -94,70 +94,48 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
   });
   const saveAdminNotifPrefs = () => {
     localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(adminNotifPrefs));
+    window.dispatchEvent(new CustomEvent('riva-notif-prefs-changed'));
     flash('Notification preferences saved!');
   };
 
-  // Branding / theme — 50+ gradient presets
+  // Curated professional palettes for a digital invitation platform
   const PRESETS = [
-    // Greens
-    { name: 'Riva Green',     start: 'var(--color-primary)', end: 'var(--color-secondary)', dir: '135deg'   },
-    { name: 'Emerald',        start: 'var(--color-secondary)', end: '#0d9488', dir: '135deg'   },
-    { name: 'Forest',         start: 'var(--color-primary-text)', end: 'var(--color-primary-text)', dir: '135deg'   },
-    { name: 'Mint',           start: '#10b981', end: 'var(--color-secondary)', dir: 'to right' },
-    { name: 'Jade',           start: '#047857', end: '#065f46', dir: '135deg'   },
-    { name: 'Spring',         start: 'var(--color-primary)', end: 'var(--color-secondary)', dir: 'to right' },
-    { name: 'Meadow',         start: '#84cc16', end: 'var(--color-secondary)', dir: '135deg'   },
-    { name: 'Tropics',        start: '#06b6d4', end: '#10b981', dir: 'to right' },
-    // Blues
-    { name: 'Ocean Blue',     start: '#1e3c72', end: '#2a5298', dir: 'to right'        },
-    { name: 'Sky',            start: '#0ea5e9', end: '#2563eb', dir: '135deg'          },
-    { name: 'Sapphire',       start: '#2563eb', end: '#7c3aed', dir: '135deg'          },
-    { name: 'Deep Sea',       start: '#0c4a6e', end: '#0369a1', dir: 'to bottom right' },
-    { name: 'Arctic',         start: '#38bdf8', end: '#818cf8', dir: 'to right'        },
-    { name: 'Marine',         start: '#164e63', end: '#0e7490', dir: '135deg'          },
-    { name: 'Electric Blue',  start: '#1d4ed8', end: '#06b6d4', dir: 'to right'        },
-    { name: 'Cosmic',         start: '#1e1b4b', end: '#4f46e5', dir: '135deg'          },
-    { name: 'Teal',           start: '#0d9488', end: '#0284c7', dir: 'to right'        },
-    // Purples
-    { name: 'Royal Purple',   start: '#7c3aed', end: '#a855f7', dir: '135deg'   },
-    { name: 'Violet',         start: '#7c3aed', end: '#5b21b6', dir: '135deg'   },
-    { name: 'Lavender',       start: '#a78bfa', end: '#c084fc', dir: 'to right' },
-    { name: 'Indigo Night',   start: '#4f46e5', end: '#7c3aed', dir: '135deg'   },
-    { name: 'Plum',           start: '#86198f', end: '#a21caf', dir: '135deg'   },
-    { name: 'Magenta',        start: '#d946ef', end: '#a855f7', dir: 'to right' },
-    { name: 'Dusk',           start: '#6d28d9', end: '#db2777', dir: '135deg'   },
-    // Reds & Pinks
-    { name: 'Sunset',         start: '#f97316', end: '#dc2626', dir: 'to bottom right' },
-    { name: 'Rose Gold',      start: '#db2777', end: '#f97316', dir: 'to right'        },
-    { name: 'Crimson',        start: '#dc2626', end: '#9f1239', dir: '135deg'          },
-    { name: 'Cherry',         start: '#be123c', end: '#dc2626', dir: 'to right'        },
-    { name: 'Hot Pink',       start: '#f43f5e', end: '#d946ef', dir: 'to right'        },
-    { name: 'Candy',          start: '#ec4899', end: '#f43f5e', dir: '135deg'          },
-    { name: 'Raspberry',      start: '#be185d', end: '#9d174d', dir: '135deg'          },
-    { name: 'Blaze',          start: '#dc2626', end: '#9f1239', dir: 'to bottom right' },
-    { name: 'Volcano',        start: '#dc2626', end: '#f97316', dir: 'to right'        },
-    { name: 'Coral',          start: '#f43f5e', end: '#ec4899', dir: 'to right'        },
-    // Oranges & Yellows
-    { name: 'Amber Gold',     start: '#d97706', end: '#b45309', dir: '135deg'   },
-    { name: 'Amber',          start: '#f59e0b', end: '#d97706', dir: 'to right' },
-    { name: 'Pumpkin',        start: '#ea580c', end: '#d97706', dir: 'to right' },
-    { name: 'Autumn',         start: '#b45309', end: '#92400e', dir: '135deg'   },
-    { name: 'Lemon',          start: '#ca8a04', end: '#d97706', dir: 'to right' },
-    { name: 'Peach',          start: '#fb923c', end: '#f472b6', dir: 'to right' },
-    { name: 'Bronze',         start: '#92400e', end: '#b45309', dir: '135deg'   },
-    // Darks
-    { name: 'Midnight',       start: '#0f172a', end: '#1e40af', dir: '135deg'   },
-    { name: 'Obsidian',       start: '#18181b', end: '#27272a', dir: '135deg'   },
-    { name: 'Slate',          start: '#1e293b', end: '#334155', dir: '135deg'   },
-    { name: 'Steel',          start: '#475569', end: '#334155', dir: '135deg'   },
-    { name: 'Storm',          start: '#1e3a5f', end: '#2d6a9f', dir: '135deg'   },
-    { name: 'Rust',           start: '#9a3412', end: '#c2410c', dir: '135deg'   },
-    { name: 'Moss',           start: '#365314', end: 'var(--color-primary-text)', dir: '135deg'   },
-    // Special
-    { name: 'Turquoise',      start: '#2dd4bf', end: '#34d399', dir: 'to right' },
-    { name: 'Seafoam',        start: '#5eead4', end: '#67e8f9', dir: 'to right' },
-    { name: 'Neon Green',     start: 'var(--color-secondary)', end: '#84cc16', dir: 'to right' },
-    { name: 'Ice',            start: '#bae6fd', end: '#a5b4fc', dir: 'to right' },
+    // ── Wedding & Romance ─────────────────────────────────────────────────
+    { name: 'Gold Elegance',    start: '#7b5400', end: '#d4af37', dir: '135deg'          },
+    { name: 'Rose Gold',        start: '#9d4b5e', end: '#d4a0a8', dir: '135deg'          },
+    { name: 'Midnight Rose',    start: '#1a0a14', end: '#8b1a4a', dir: '135deg'          },
+    { name: 'Navy & Gold',      start: '#0f2044', end: '#c9a440', dir: '135deg'          },
+    { name: 'Blush Ivory',      start: '#b56576', end: '#f2c4ce', dir: 'to right'        },
+    { name: 'Dusty Mauve',      start: '#704060', end: '#c49baa', dir: '135deg'          },
+    { name: 'Champagne Glow',   start: '#9a7232', end: '#eedfa0', dir: 'to right'        },
+    { name: 'Garden Rose',      start: '#8b1a4a', end: '#e879a0', dir: '135deg'          },
+    // ── Birthday & Celebration ───────────────────────────────────────────
+    { name: 'Confetti Joy',     start: '#e11d48', end: '#f97316', dir: 'to right'        },
+    { name: 'Party Purple',     start: '#6d28d9', end: '#ec4899', dir: '135deg'          },
+    { name: 'Golden Birthday',  start: '#b45309', end: '#fbbf24', dir: 'to right'        },
+    { name: 'Tropical Fiesta',  start: '#0e7490', end: '#059669', dir: 'to right'        },
+    { name: 'Berry Burst',      start: '#5b21b6', end: '#be185d', dir: '135deg'          },
+    { name: 'Peach Sorbet',     start: '#c2410c', end: '#f472b6', dir: 'to right'        },
+    // ── Luxury & Premium ─────────────────────────────────────────────────
+    { name: 'Black Gold',       start: '#18181b', end: '#b8860b', dir: '135deg'          },
+    { name: 'Royal Burgundy',   start: '#4c0519', end: '#9f1239', dir: '135deg'          },
+    { name: 'Deep Emerald',     start: '#022c22', end: '#059669', dir: '135deg'          },
+    { name: 'Sapphire Night',   start: '#0f1e5e', end: '#4338ca', dir: '135deg'          },
+    { name: 'Amethyst',         start: '#2e1065', end: '#7c3aed', dir: '135deg'          },
+    { name: 'Crimson Velvet',   start: '#450a0a', end: '#b91c1c', dir: '135deg'          },
+    // ── Modern Elegance ──────────────────────────────────────────────────
+    { name: 'Tiffany Blue',     start: '#0d6e6e', end: '#2dd4bf', dir: 'to right'        },
+    { name: 'Lavender Dream',   start: '#3b0764', end: '#a78bfa', dir: '135deg'          },
+    { name: 'Marigold',         start: '#92400e', end: '#f59e0b', dir: 'to right'        },
+    { name: 'Coral Blossom',    start: '#9f1239', end: '#fb923c', dir: 'to bottom right' },
+    { name: 'Slate & Sky',      start: '#1e293b', end: '#38bdf8', dir: '135deg'          },
+    { name: 'Plum & Gold',      start: '#4a044e', end: '#c9a440', dir: '135deg'          },
+    // ── Seasonal ─────────────────────────────────────────────────────────
+    { name: 'Winter Frost',     start: '#1e3a5f', end: '#93c5fd', dir: '135deg'          },
+    { name: 'Spring Bloom',     start: '#831843', end: '#f9a8d4', dir: '135deg'          },
+    { name: 'Summer Sunset',    start: '#7c2d12', end: '#fbbf24', dir: 'to bottom right' },
+    { name: 'Autumn Harvest',   start: '#451a03', end: '#d97706', dir: '135deg'          },
+    { name: 'Monsoon Teal',     start: '#134e4a', end: '#0ea5e9', dir: '135deg'          },
   ];
   const DIRECTIONS = [
     { label: '↘ Diagonal',  value: '135deg'          },
@@ -166,12 +144,18 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
     { label: '↗ Diagonal',  value: 'to top right'    },
     { label: '↙ Diagonal',  value: 'to bottom right' },
   ];
-  const [colorStart,   setColorStart]  = useState('#16a34a');
-  const [colorEnd,     setColorEnd]    = useState('#059669');
-  const [gradientDir,  setGradientDir] = useState('135deg');
-  const [themeMode,    setThemeMode]   = useState<'light' | 'dark'>('light');
-  const [brandSaving,  setBrandSaving] = useState(false);
-  const [brandLoaded,  setBrandLoaded] = useState(false);
+  const [colorStart,   setColorStart]  = useState(() => {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#7b5400';
+  });
+  const [colorEnd,     setColorEnd]    = useState(() => {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--color-secondary').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '#d4af37';
+  });
+  const [gradientDir,  setGradientDir]  = useState('135deg');
+  const [gradientText, setGradientText] = useState<'auto' | 'light' | 'dark'>('auto');
+  const [brandSaving,  setBrandSaving]  = useState(false);
+  const [brandLoaded,  setBrandLoaded]  = useState(false);
 
   const liveGradient = `linear-gradient(${gradientDir}, ${colorStart}, ${colorEnd})`;
 
@@ -181,7 +165,7 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
       setColorStart(t.colorStart);
       setColorEnd(t.colorEnd);
       setGradientDir(t.gradientDir);
-      setThemeMode(t.mode ?? 'light');
+      setGradientText(t.gradientText ?? 'auto');
       setBrandLoaded(true);
     }).catch(() => {});
   };
@@ -190,9 +174,9 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
     if (!colorStart || !colorEnd) { flash('Please select both start and end colors.', false); return; }
     setBrandSaving(true);
     try {
-      await saveTheme({ colorStart, colorEnd, gradientDir, mode: themeMode });
-      applyTheme(colorStart, colorEnd, gradientDir, themeMode);
-      flash(`${themeMode === 'dark' ? '🌙 Dark' : '☀️ Light'} theme applied to all users!`);
+      await saveTheme({ colorStart, colorEnd, gradientDir, gradientText });
+      applyTheme(colorStart, colorEnd, gradientDir, undefined, gradientText);
+      flash(`Theme applied to all users!`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to save theme';
       flash(msg.includes('401') || msg.toLowerCase().includes('unauthorized')
@@ -426,27 +410,63 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
             {active === 'notifications' && (
               <motion.div key="notif"
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                className="card-green p-6">
-                <h2 className="text-xl font-black text-slate-900 mb-5">Notification Preferences</h2>
-                <div className="space-y-4">
-                  {ADMIN_NOTIF_ITEMS.map(n => (
-                    <label key={n.key}
-                      className="flex items-center justify-between gap-4 rounded-2xl border-2 border-green-100 bg-green-50 p-4 cursor-pointer hover:border-green-300 transition">
-                      <div>
-                        <p className="font-black text-slate-800">{n.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{n.desc}</p>
-                      </div>
-                      <input type="checkbox"
-                        checked={!!adminNotifPrefs[n.key]}
-                        onChange={e => setAdminNotifPrefs(p => ({ ...p, [n.key]: e.target.checked }))}
-                        className="h-5 w-5 accent-green-600 cursor-pointer" />
-                    </label>
-                  ))}
+                className="card-green p-6 space-y-5">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 mb-0.5">Notification Preferences</h2>
+                  <p className="text-sm text-slate-400">
+                    Control which events appear in the 🔔 bell in the sidebar. Changes take effect immediately.
+                  </p>
                 </div>
+
+                {/* Info box */}
+                <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2.5">
+                  <span className="text-base mt-0.5">ℹ️</span>
+                  <div className="text-xs text-blue-800">
+                    <p className="font-black mb-1">How notifications work</p>
+                    <p>The bell (🔔) in the sidebar shows live events from the last 24 hours. Unread events have a <strong>blue dot</strong> and a red badge count. Click the bell to view all events.</p>
+                  </div>
+                </div>
+
+                {/* Toggle rows */}
+                <div className="space-y-3">
+                  {ADMIN_NOTIF_ITEMS.map(n => {
+                    const colorMap: Record<string, string> = {
+                      registrations: 'border-blue-200   bg-blue-50   hover:border-blue-300',
+                      payments:      'border-green-200  bg-green-50  hover:border-green-300',
+                      security:      'border-amber-200  bg-amber-50  hover:border-amber-300',
+                    };
+                    const iconMap: Record<string, string> = {
+                      registrations: '👤', payments: '💰', security: '🔒',
+                    };
+                    return (
+                      <label key={n.key}
+                        className={`flex items-center justify-between gap-4 rounded-2xl border-2 p-4 cursor-pointer transition ${colorMap[n.key]}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{iconMap[n.key]}</span>
+                          <div>
+                            <p className="font-black text-slate-800 text-sm">{n.label}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{n.desc}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs font-black ${adminNotifPrefs[n.key] ? 'text-green-600' : 'text-slate-400'}`}>
+                            {adminNotifPrefs[n.key] ? 'ON' : 'OFF'}
+                          </span>
+                          <div
+                            onClick={() => setAdminNotifPrefs(p => ({ ...p, [n.key]: !p[n.key] }))}
+                            className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer ${adminNotifPrefs[n.key] ? 'bg-green-500' : 'bg-slate-300'}`}>
+                            <div className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${adminNotifPrefs[n.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
                 <motion.button onClick={saveAdminNotifPrefs}
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  className="btn-green mt-5">
-                  Save Preferences
+                  className="btn-green">
+                  💾 Save Preferences
                 </motion.button>
               </motion.div>
             )}
@@ -461,8 +481,8 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
 
                 {/* Preset swatches — scrollable */}
                 <div>
-                  <label className={lbl}>50+ Gradient Presets</label>
-                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-100 p-2">
+                  <label className={lbl}>Professional Invitation Palettes</label>
+                  <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-100 p-2">
                     <div className="grid grid-cols-4 gap-1.5">
                       {PRESETS.map(p => {
                         const isSelected = colorStart === p.start && colorEnd === p.end;
@@ -519,23 +539,29 @@ const AdminSettingsPanel: React.FC<Props> = ({ onLogout }) => {
                   </div>
                 </div>
 
-                {/* Dark / Light toggle */}
+                {/* Text on Gradient */}
                 <div>
-                  <label className={lbl}>Theme Mode</label>
-                  <div className="flex gap-3 mt-1">
-                    {(['light', 'dark'] as const).map(m => (
-                      <motion.button key={m} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                        onClick={() => setThemeMode(m)}
-                        className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-black border-2 transition ${themeMode === m ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
-                        style={themeMode === m ? { background: liveGradient } : {}}>
-                        {m === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                  <label className={lbl}>Text on Gradient Background</label>
+                  <p className="text-xs text-slate-400 mb-2">Controls text color on sections with gradient backgrounds (like the features section).</p>
+                  <div className="flex gap-2">
+                    {([
+                      { val: 'auto',  label: '🤖 Auto',       desc: 'Detects best contrast automatically' },
+                      { val: 'light', label: '⬜ Light Text',  desc: 'Force white text (for dark gradients)' },
+                      { val: 'dark',  label: '⬛ Dark Text',   desc: 'Force dark text (for light gradients)' },
+                    ] as const).map(opt => (
+                      <motion.button key={opt.val} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => setGradientText(opt.val)}
+                        title={opt.desc}
+                        className={`flex-1 rounded-xl py-2.5 text-xs font-black border-2 transition ${gradientText === opt.val ? 'text-white border-transparent' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                        style={gradientText === opt.val ? { background: liveGradient } : {}}>
+                        {opt.label}
                       </motion.button>
                     ))}
                   </div>
                 </div>
 
                 {/* Live preview */}
-                <div className={`rounded-2xl border-2 border-slate-100 p-4 space-y-3 transition-colors ${themeMode === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                <div className="rounded-2xl border-2 border-slate-100 p-4 space-y-3 bg-white">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Live Preview</p>
                   <button style={{ background: liveGradient }}
                     className="w-full rounded-xl py-3 text-sm font-black text-white shadow-lg">

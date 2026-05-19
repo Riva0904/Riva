@@ -65,11 +65,12 @@ public class RsvpController : ControllerBase
 
         var id = await _rsvps.CreateAsync(rsvp);
 
-        // Notify invitation owner — awaited directly, same pattern as OTP emails
+        // Notify invitation owner only if they have email notifications enabled
         try
         {
-            var owner = await _users.GetByIdAsync(invitation.UserId);
-            if (owner is not null && !string.IsNullOrWhiteSpace(owner.Email))
+            var owner        = await _users.GetByIdAsync(invitation.UserId);
+            var notifyOnRsvp = await _users.GetNotifyOnRsvpAsync(invitation.UserId);
+            if (owner is not null && !string.IsNullOrWhiteSpace(owner.Email) && notifyOnRsvp)
             {
                 var link = $"{_config["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173"}/dashboard";
                 await _email.SendRsvpNotificationAsync(

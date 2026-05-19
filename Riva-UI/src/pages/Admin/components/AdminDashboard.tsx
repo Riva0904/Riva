@@ -107,10 +107,11 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 // ── Main component ────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
-  const [stats,       setStats]       = useState<Stats | null>(null);
-  const [templates,   setTemplates]   = useState<TemplateListItem[]>([]);
-  const [payStats,    setPayStats]    = useState<AdminPaymentStats | null>(null);
-  const [loading,     setLoading]     = useState(true);
+  const [stats,        setStats]        = useState<Stats | null>(null);
+  const [templates,    setTemplates]    = useState<TemplateListItem[]>([]);   // recent 6
+  const [allTemplates, setAllTemplates] = useState<TemplateListItem[]>([]);   // full list
+  const [payStats,     setPayStats]     = useState<AdminPaymentStats | null>(null);
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
     Promise.allSettled([
@@ -124,6 +125,7 @@ const AdminDashboard: React.FC = () => {
       // Only count verified, active, non-admin users
       const validUsers = uList.filter(u => u.isVerified && u.isActive && u.role !== 'Admin');
 
+      setAllTemplates(tList);
       setTemplates(tList.slice(0, 6));
       setStats({
         totalUsers:         validUsers.length,
@@ -179,9 +181,9 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Category breakdown */}
-      {templates.length > 0 && (() => {
+      {allTemplates.length > 0 && (() => {
         const catMap: Record<string, { free: number; premium: number; pro: number; total: number }> = {};
-        templates.forEach(t => {
+        allTemplates.forEach(t => {
           const c = t.categoryName || 'Uncategorised';
           if (!catMap[c]) catMap[c] = { free: 0, premium: 0, pro: 0, total: 0 };
           catMap[c].total++;

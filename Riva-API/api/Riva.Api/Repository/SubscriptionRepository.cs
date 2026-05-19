@@ -195,6 +195,47 @@ public class SubscriptionRepository : ISubscriptionRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<(decimal Monthly, decimal Yearly)> GetPricesAsync(string planType)
+    {
+        const string sql = "SELECT MonthlyPrice, YearlyPrice FROM PlanSettings WHERE PlanType = @P";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@P", planType);
+        using var r = await cmd.ExecuteReaderAsync();
+        if (await r.ReadAsync())
+            return (r.GetDecimal(0), r.GetDecimal(1));
+        return planType == "Pro" ? (1499m, 3499m) : (799m, 2499m);
+    }
+
+    public async Task SetPricesAsync(string planType, decimal monthlyPrice, decimal yearlyPrice)
+    {
+        const string sql = @"
+            IF EXISTS (SELECT 1 FROM PlanSettings WHERE PlanType = @P)
+                UPDATE PlanSettings SET MonthlyPrice = @MP, YearlyPrice = @YP WHERE PlanType = @P
+            ELSE
+                INSERT INTO PlanSettings (PlanType, MonthlyQuota, YearlyQuota, MonthlyPrice, YearlyPrice)
+                VALUES (@P, 30, 0, @MP, @YP)";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@P",  planType);
+        cmd.Parameters.AddWithValue("@MP", monthlyPrice);
+        cmd.Parameters.AddWithValue("@YP", yearlyPrice);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<int> GetPublishCountAsync(int userId, DateTime start, DateTime end)
+    {
+        const string sql = @"
+            SELECT COUNT(*) FROM InvitationInstances
+            WHERE UserId = @UserId AND CreatedAt >= @Start AND CreatedAt <= @End";
+        using var conn = await _db.GetOpenConnectionAsync();
+        using var cmd  = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@UserId", userId);
+        cmd.Parameters.AddWithValue("@Start",  start);
+        cmd.Parameters.AddWithValue("@End",    end);
+        return (int)(await cmd.ExecuteScalarAsync() ?? 0);
+    }
+
     private static UserSubscription MapSub(SqlDataReader r) => new()
     {
         Id                = r.GetInt32(r.GetOrdinal("Id")),

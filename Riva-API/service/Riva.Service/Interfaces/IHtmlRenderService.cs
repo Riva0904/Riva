@@ -8,5 +8,9 @@ public interface IHtmlRenderService
     /// Builds the complete HTML page for a published invitation.
     /// Injects CSS, JS, replaces placeholders, adds SEO meta tags.
     /// </summary>
-    string RenderInvitation(InvitationInstance invitation, Template template);
+    /// <param name="showBranding">
+    /// When true a "Made with Riva" footer is injected automatically.
+    /// Free / Pro templates always receive branding; Premium templates never do.
+    /// </param>
+    string RenderInvitation(InvitationInstance invitation, Template template, bool showBranding = true);
 }

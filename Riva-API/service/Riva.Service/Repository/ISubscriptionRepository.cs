@@ -23,4 +23,11 @@ public interface ISubscriptionRepository
     Task SetMonthlyQuotaAsync(string planType, int quota);
     Task<int> GetYearlyQuotaAsync(string planType);
     Task SetYearlyQuotaAsync(string planType, int quota);
+
+    // ── Plan settings (prices) ────────────────────────────────────────
+    Task<(decimal Monthly, decimal Yearly)> GetPricesAsync(string planType);
+    Task SetPricesAsync(string planType, decimal monthlyPrice, decimal yearlyPrice);
+
+    // ── Publish count (invitations created in subscription period) ────
+    Task<int> GetPublishCountAsync(int userId, DateTime start, DateTime end);
 }

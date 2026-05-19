@@ -8,6 +8,7 @@ using Riva.Service.Command.User;
 using Riva.Service.Interfaces;
 using Riva.Service.Query.Admin;
 using Riva.Service.Query.User;
+using Riva.Service.Repository;
 
 namespace Riva.Api.Controllers;
 
@@ -19,12 +20,14 @@ public class UsersController : ControllerBase
     private readonly IMediator           _mediator;
     private readonly IMediaUploadService _upload;
     private readonly IEmailService       _email;
+    private readonly IUserRepository     _users;
 
-    public UsersController(IMediator mediator, IMediaUploadService upload, IEmailService email)
+    public UsersController(IMediator mediator, IMediaUploadService upload, IEmailService email, IUserRepository users)
     {
         _mediator = mediator;
         _upload   = upload;
         _email    = email;
+        _users    = users;
     }
 
     // ── Current user ──────────────────────────────────────────────────────────
@@ -177,9 +180,19 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Save notification preferences for the current user.</summary>
+    [HttpPatch("notification-prefs")]
+    public async Task<IActionResult> SaveNotifPrefs([FromBody] NotifPrefsRequest req)
+    {
+        await _users.UpdateNotifyOnRsvpAsync(GetUserId(), req.NotifyOnRsvp);
+        return Ok(new { Message = "Preferences saved." });
+    }
+
     private int GetUserId()
     {
         var v = User.FindFirstValue(ClaimTypes.NameIdentifier);
         return int.TryParse(v, out var id) ? id : 0;
     }
 }
+
+public record NotifPrefsRequest(bool NotifyOnRsvp);

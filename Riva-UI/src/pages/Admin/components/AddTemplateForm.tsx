@@ -1,6 +1,60 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { addTemplate, uploadTemplateImage, type AddTemplatePayload } from '../../../api/templates';
 import { getCategories, type CategoryDto } from '../../../api/categories';
+
+// Sample data used to fill {{tokens}} in the preview
+const SAMPLE: Record<string, string> = {
+  title: "Arjun & Priya's Wedding",
+  subtitle: 'Together with their families',
+  name: 'Arjun & Priya',
+  brideName: 'Priya Sharma', groomName: 'Arjun Patel',
+  hostName: 'The Sharma & Patel Families',
+  date: 'December 25, 2026', time: '7:00 PM onwards',
+  venue: 'Grand Ballroom, The Taj Hotel',
+  address: '123 Marine Drive, Mumbai', city: 'Mumbai',
+  message: 'We joyfully invite you to celebrate our special day.',
+  welcomeMessage: 'Welcome! We are so glad you could join us.',
+  quote: '"Two hearts, one beautiful love story."',
+  eventName: "Arjun & Priya's Wedding Celebration",
+  phone: '+91 98765 43210', rsvpDate: 'December 15, 2026',
+  guestName: 'Valued Guest', age: '25',
+  birthdayPerson: 'Sarah', partyTheme: 'Neon Glow Night',
+  host: 'The Johnson Family', occasion: 'Special Celebration',
+  year: '2026', color: '#7c3aed',
+  mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3888.0!2d77.5946!3d12.9716',
+  mapRedirectUrl: 'https://maps.google.com',
+  mapLocation: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3888.0!2d77.5946!3d12.9716',
+  birthdayImage: '', birthdayPersonName: 'Sarah',
+};
+
+function buildPreviewDoc(html: string, css: string, js: string): string {
+  // Replace {{tokens}} in HTML
+  const body = html.replace(/\{\{(\w+)\}\}/g, (m, k) => SAMPLE[k] ?? `[${k}]`);
+
+  // Replace {{tokens}} in JS, then auto-replace const templateData = {...}
+  let jsOut = js.replace(/\{\{(\w+)\}\}/g, (m, k) => {
+    const v = SAMPLE[k] ?? '';
+    return v.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+  });
+  const tdIdx = jsOut.indexOf('const templateData');
+  if (tdIdx !== -1) {
+    const ob = jsOut.indexOf('{', tdIdx);
+    if (ob !== -1) {
+      let depth = 1, i = ob + 1;
+      while (i < jsOut.length && depth > 0) { if (jsOut[i]==='{') depth++; else if (jsOut[i]==='}') depth--; i++; }
+      const entries = Object.entries(SAMPLE).filter(([,v])=>v!=='').map(([k,v])=>`  ${k}: ${JSON.stringify(v)}`).join(',\n');
+      jsOut = jsOut.slice(0, tdIdx) + `const templateData = {\n${entries}\n}` + jsOut.slice(i);
+    }
+  }
+
+  return `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;min-height:100%}img,video{max-width:100%;display:block}</style>
+<style>${css}</style>
+</head><body>${body}
+<script>${jsOut}<\/script>
+</body></html>`;
+}
 
 interface Props { onSuccess: () => void; }
 
@@ -62,7 +116,23 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
   const [success,   setSuccess]   = useState<string | null>(null);
   const [loading,   setLoading]   = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [tab,       setTab]       = useState<'basic' | 'code' | 'schema'>('basic');
+  const [tab,       setTab]       = useState<'basic' | 'code' | 'schema' | 'preview'>('basic');
+  const [device,    setDevice]    = useState<'mobile' | 'desktop'>('mobile');
+  const [previewed, setPreviewed] = useState(false);
+
+  const previewDoc = useMemo(() =>
+    tab === 'preview' ? buildPreviewDoc(form.templateHtml, form.templateCss ?? '', form.templateJs ?? '') : '',
+  [tab, form.templateHtml, form.templateCss, form.templateJs]);
+
+  const [blobUrl, setBlobUrl] = useState('');
+  const blobRef = useRef('');
+  useEffect(() => {
+    if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+    if (!previewDoc) { setBlobUrl(''); blobRef.current = ''; return; }
+    const url = URL.createObjectURL(new Blob([previewDoc], { type: 'text/html' }));
+    blobRef.current = url; setBlobUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [previewDoc]);
 
   const handleImageUpload = async (file: File) => {
     setUploading(true);
@@ -122,10 +192,19 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b-2 border-slate-100">
-        <button type="button" className={tabCls('basic')}  onClick={() => setTab('basic')}>📋 Basic Info</button>
-        <button type="button" className={tabCls('code')}   onClick={() => setTab('code')}>💻 HTML / CSS / JS</button>
-        <button type="button" className={tabCls('schema')} onClick={() => setTab('schema')}>📐 Schema (Fields)</button>
+      <div className="flex gap-1 border-b-2 border-slate-100 flex-wrap">
+        <button type="button" className={tabCls('basic')}   onClick={() => setTab('basic')}>📋 Basic Info</button>
+        <button type="button" className={tabCls('code')}    onClick={() => setTab('code')}>💻 HTML / CSS / JS</button>
+        <button type="button" className={tabCls('schema')}  onClick={() => setTab('schema')}>📐 Schema (Fields)</button>
+        <button type="button"
+          className={`px-4 py-2 text-sm font-black rounded-t-xl border-b-2 transition flex items-center gap-1.5 ${
+            tab === 'preview'
+              ? 'border-purple-600 text-purple-700 bg-purple-50'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+          onClick={() => { setTab('preview'); setPreviewed(true); }}>
+          👁 Preview {previewed && <span className="rounded-full bg-green-500 text-white text-[9px] px-1.5 py-0.5">✓</span>}
+        </button>
       </div>
 
       {/* ── Basic Info ── */}
@@ -265,14 +344,71 @@ const AddTemplateForm: React.FC<Props> = ({ onSuccess }) => {
         </div>
       )}
 
+      {/* ── Preview ── */}
+      {tab === 'preview' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">Live preview with sample data. Verify your template looks correct before publishing.</p>
+            <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
+              {(['mobile', 'desktop'] as const).map(d => (
+                <button key={d} type="button" onClick={() => setDevice(d)}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition ${device === d ? 'bg-white text-slate-900 shadow' : 'text-slate-400 hover:text-slate-600'}`}>
+                  {d === 'mobile' ? '📱 Mobile' : '🖥️ Desktop'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-center bg-slate-900 rounded-2xl p-6 min-h-[500px] items-start">
+            {blobUrl ? (
+              device === 'mobile' ? (
+                <div style={{ width: 375, borderRadius: 40, border: '10px solid #1a1a2e', boxShadow: '0 0 0 2px #333, 0 40px 80px rgba(0,0,0,0.8)', overflow: 'hidden', background: '#000' }}>
+                  <div style={{ height: 24, background: '#1a1a2e', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ width: 80, height: 12, background: 'rgba(0,0,0,0.5)', borderRadius: 6 }} />
+                  </div>
+                  <iframe src={blobUrl} style={{ width: '100%', height: '72vh', border: 'none', display: 'block' }} title="Template Preview" />
+                </div>
+              ) : (
+                <div style={{ width: '100%', maxWidth: 1000, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(255,255,255,0.1)' }}>
+                  <div style={{ background: '#1e293b', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {['#ff5f57','#ffbd2e','#28c840'].map((c,i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.1)', borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                      riva.app/invite/preview
+                    </div>
+                  </div>
+                  <iframe src={blobUrl} style={{ width: '100%', height: '70vh', border: 'none', display: 'block' }} title="Template Preview" />
+                </div>
+              )
+            ) : (
+              <div className="text-white/40 text-sm flex flex-col items-center gap-3 py-20">
+                <span className="text-5xl">👁</span>
+                <p>Building preview…</p>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 flex gap-2">
+            <span>💡</span>
+            <span>Preview uses <strong>sample data</strong> for placeholders. Go back to fix any layout issues before publishing.</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 p-3 text-xs text-green-700">
         <span>🚀</span>
         <span>Templates are <strong>immediately published</strong> and visible to all users when you submit.</span>
       </div>
 
-      <button type="submit" disabled={loading}
-        className="btn-green w-full py-4 text-base">
-        {loading ? '⏳ Publishing template…' : '🚀 Publish Template'}
+      {!previewed && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 flex gap-2">
+          <span>⚠️</span>
+          <span>Please click <strong>👁 Preview</strong> tab to verify the template before publishing.</span>
+        </div>
+      )}
+
+      <button type="submit" disabled={loading || !previewed}
+        className={`btn-green w-full py-4 text-base transition ${!previewed ? 'opacity-50 cursor-not-allowed' : ''}`}>
+        {loading ? '⏳ Publishing template…' : previewed ? '🚀 Publish Template' : '👁 Preview first, then publish'}
       </button>
     </form>
   );

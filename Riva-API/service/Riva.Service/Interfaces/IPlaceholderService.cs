@@ -15,4 +15,12 @@ public interface IPlaceholderService
     string ReplaceWithMedia(string template,
         IReadOnlyDictionary<string, string> fieldValues,
         IReadOnlyDictionary<string, string> mediaUrls);
+
+    /// <summary>
+    /// Replaces {{fieldName}} tokens inside JavaScript code.
+    /// Values are JS-string-escaped (quotes and backslashes) instead of HTML-encoded.
+    /// </summary>
+    string ReplaceForJs(string jsTemplate,
+        IReadOnlyDictionary<string, string> fieldValues,
+        IReadOnlyDictionary<string, string> mediaUrls);
 }

@@ -62,6 +62,8 @@ public class UpdateStatusRequest
     public string Status { get; set; } = "Published";
 }
 
+public class UpdatePriceRequest { public decimal Price { get; set; } }
+
 public class AddTemplateResponse
 {
     public int TemplateId { get; set; }

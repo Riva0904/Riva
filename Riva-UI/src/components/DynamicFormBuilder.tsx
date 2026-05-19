@@ -71,6 +71,11 @@ const FieldItem = React.memo(function FieldItem({
           onChange={e => notify(e.target.value)} />
       )}
 
+      {field.type === 'time' && (
+        <input type="time" className={inp} defaultValue={defaultVal}
+          onChange={e => notify(e.target.value)} />
+      )}
+
       {field.type === 'color' && (
         <div className="flex items-center gap-3">
           <input type="color" className="h-10 w-16 rounded-lg border-2 border-slate-200 cursor-pointer"
@@ -80,9 +85,21 @@ const FieldItem = React.memo(function FieldItem({
       )}
 
       {field.type === 'url' && (
-        <input type="url" className={inp} defaultValue={defaultVal}
-          onChange={e => notify(e.target.value)}
-          placeholder={field.placeholder || 'https://'} />
+        <div className="space-y-1">
+          <input type="text" className={inp} defaultValue={defaultVal}
+            onChange={e => notify(e.target.value)}
+            onPaste={e => {
+              const pasted = e.clipboardData.getData('text');
+              const match = pasted.match(/src=["']([^"']+)["']/);
+              if (match) {
+                e.preventDefault();
+                (e.target as HTMLInputElement).value = match[1];
+                notify(match[1]);
+              }
+            }}
+            placeholder={field.placeholder || 'Paste Google Maps embed code or URL'} />
+          <p className="text-xs text-slate-400 mt-1">💡 Paste the full embed code — URL is extracted automatically.</p>
+        </div>
       )}
 
       {field.type === 'select' && (

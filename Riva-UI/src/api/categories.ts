@@ -27,3 +27,7 @@ export async function updateCategory(id: number, name: string): Promise<{ messag
 export async function toggleCategory(id: number): Promise<{ categoryId: number; name: string; isActive: boolean; message: string }> {
   return apiFetch(`category/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({}) });
 }
+
+export async function deleteCategory(id: number): Promise<{ message: string }> {
+  return apiFetch(`category/${id}`, { method: 'DELETE' });
+}

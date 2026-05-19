@@ -1,11 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Riva.Dto.Template;
 using Riva.Service.Command.Template;
 using Riva.Service.Interfaces;
 using Riva.Service.Query.Template;
-using System.Security.Claims;
 using Riva.Service.Repository;
 
 namespace Riva.Api.Controllers;
@@ -98,6 +98,17 @@ public class TemplateController : ControllerBase
             CreatedDate     = t.CreatedDate
         });
         return Ok(new { templates = items, total = items.Count() });
+    }
+
+    // PATCH /api/template/{id}/price  [Admin only]
+    [HttpPatch("{id:int}/price")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdatePrice(int id, [FromBody] UpdatePriceRequest req)
+    {
+        var existing = await _templates.GetByIdAsync(id);
+        if (existing is null) return NotFound(new { Message = "Template not found." });
+        await _templates.UpdatePriceAsync(id, req.Price > 0 ? req.Price : null);
+        return Ok(new { Message = "Price updated." });
     }
 
     // PATCH /api/template/{id}/status  [Admin only]

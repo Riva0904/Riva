@@ -13,15 +13,18 @@ public class PublicController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IHtmlRenderService _renderer;
     private readonly IInvitationRepository _invitations;
+    private readonly ISubscriptionRepository _subscriptions;
 
     public PublicController(
         IMediator mediator,
         IHtmlRenderService renderer,
-        IInvitationRepository invitations)
+        IInvitationRepository invitations,
+        ISubscriptionRepository subscriptions)
     {
-        _mediator    = mediator;
-        _renderer    = renderer;
-        _invitations = invitations;
+        _mediator      = mediator;
+        _renderer      = renderer;
+        _invitations   = invitations;
+        _subscriptions = subscriptions;
     }
 
     /// <summary>Returns the fully-rendered HTML mini-website for a published invitation.</summary>
@@ -48,7 +51,27 @@ public class PublicController : ControllerBase
 
         _ = _invitations.IncrementViewCountAsync(invitation.InvitationId);
 
-        var html = _renderer.RenderInvitation(invitation, invitation.Template!);
+        // ── Branding logic ────────────────────────────────────────────────────
+        // Free / Pro templates always show Riva branding.
+        // Premium templates never show branding.
+        // Additionally, if the invitation creator has an active Premium subscription,
+        // branding is removed from all their templates (including Free / Pro).
+        var tierType = invitation.Template?.TierType ?? "Free";
+        bool showBranding;
+
+        if (tierType == "Premium")
+        {
+            // Premium template → never show branding
+            showBranding = false;
+        }
+        else
+        {
+            // Free / Pro template → show branding unless creator has Premium subscription
+            var sub = await _subscriptions.GetActiveSubscriptionAsync(invitation.UserId);
+            showBranding = sub?.PlanType != "Premium";
+        }
+
+        var html = _renderer.RenderInvitation(invitation, invitation.Template!, showBranding);
         return Content(html, "text/html; charset=utf-8");
     }
 

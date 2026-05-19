@@ -6,8 +6,8 @@ import {
 import { getCategories, type CategoryDto } from '../../../api/categories';
 import MonthlyPoolModal from './MonthlyPoolModal';
 
-// Prefix relative backend URLs so images load from the API server, not frontend origin
-const API_ORIGIN = (import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api').replace(/\/api$/, '');
+import { API_ORIGIN } from '../../../api/client';
+
 function toAbsoluteUrl(url: string | null | undefined): string {
   if (!url) return '';
   return url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
@@ -468,7 +468,7 @@ const TemplateList: React.FC = () => {
             onClick={() => setShowPool(true)}
             className="rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 transition flex items-center gap-1.5"
           >
-            📅 Monthly Pool
+            🎯 Plan Manager
           </button>
           <button
             onClick={load}

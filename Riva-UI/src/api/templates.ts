@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, API_BASE, API_ORIGIN } from './client';
 
 export type TemplateTier = 'Free' | 'Premium' | 'Pro';
 
@@ -91,12 +91,15 @@ export async function updateTemplate(id: number, payload: UpdateTemplatePayload)
   return apiFetch(`template/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 }
 
+export async function patchTemplatePrice(id: number, price: number): Promise<{ message: string }> {
+  return apiFetch(`template/${id}/price`, { method: 'PATCH', body: JSON.stringify({ price }) });
+}
+
 export async function uploadTemplateImage(file: File): Promise<{ imageUrl: string }> {
   const form = new FormData();
   form.append('file', file);
   const token = localStorage.getItem('riva_token');
-  const apiBase = import.meta.env.VITE_API_BASE ?? 'http://localhost:5236/api';
-  const res = await fetch(`${apiBase}/template/upload-image`, {
+  const res = await fetch(`${API_BASE}/template/upload-image`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -107,9 +110,6 @@ export async function uploadTemplateImage(file: File): Promise<{ imageUrl: strin
   // Backend returns a relative path (e.g. /uploads/templates/xxx.jpg).
   // Prefix with the server origin so the browser can load it.
   let imageUrl: string = data.imageUrl ?? '';
-  if (imageUrl.startsWith('/')) {
-    const serverOrigin = apiBase.replace(/\/api$/, '');
-    imageUrl = `${serverOrigin}${imageUrl}`;
-  }
+  if (imageUrl.startsWith('/')) imageUrl = `${API_ORIGIN}${imageUrl}`;
   return { imageUrl };
 }
